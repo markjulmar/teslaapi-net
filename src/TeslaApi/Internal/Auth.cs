@@ -13,21 +13,25 @@ using HtmlAgilityPack;
 
 namespace TeslaApi.Internal
 {
-    public static class Auth
+    static class Auth
     {
-        const string TeslaAuth = "https://auth.tesla.com/";
-        const string AuthUrl = TeslaAuth + "oauth2/v3/authorize";
-        const string RedirectUri = TeslaAuth + "void/callback";
-        const string MfaTypesUrl = TeslaAuth + "oauth2/v3/authorize/mfa/factors";
-        const string MfaVerify = TeslaAuth + "oauth2/v3/authorize/mfa/verify";
-        const string TokenExchangeUrl = TeslaAuth + "oauth2/v3/token";
-        const string OwnerApiTokenUrl = "https://owner-api.teslamotors.com/oauth/token";
-
-        internal const string TESLA_CLIENT_ID = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384";
-        internal const string TESLA_CLIENT_SECRET = "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3";
-
-        public static async Task<(string accessToken, string refreshToken)> GetAccessTokenAsync(string user, string password, Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
+        public static async Task<(string accessToken, string refreshToken)> GetAccessTokenAsync(
+            string user, string password,
+            string clientId, string clientSecret,
+            Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
         {
+            if (string.IsNullOrEmpty(user))
+                throw new ArgumentException($"'{nameof(user)}' cannot be null or empty.", nameof(user));
+
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException($"'{nameof(password)}' cannot be null or empty.", nameof(password));
+
+            if (string.IsNullOrEmpty(clientId))
+                throw new ArgumentException($"'{nameof(clientId)}' cannot be null or empty.", nameof(clientId));
+
+            if (string.IsNullOrEmpty(clientSecret))
+                throw new ArgumentException($"'{nameof(clientSecret)}' cannot be null or empty.", nameof(clientSecret));
+
             string codeVerifierText = GetRandomAlphaText(86);
             string codeChallenge = CreateHash(codeVerifierText);
             string state = GetRandomAlphaText(20);
@@ -92,7 +96,7 @@ namespace TeslaApi.Internal
                     //    }
                     //  ]
                     //}
-                    string formTypes = await client.GetStringAsync(MfaTypesUrl + "?transaction_id=" + transactionId);
+                    string formTypes = await client.GetStringAsync(Constants.MfaTypesUrl + "?transaction_id=" + transactionId);
                     var mfaType = JsonSerializer.Deserialize<AuthTypeWrapper>(formTypes).Data.SingleOrDefault(at => at.FactorType == "token:software");
                     if (mfaType != null)
                     {
@@ -143,7 +147,7 @@ namespace TeslaApi.Internal
                 if (authBody == null)
                     throw new Exception("Account has multi-factor authentication enabled.");
 
-                htmlResponse = await client.PostAsync(MfaVerify, authBody);
+                htmlResponse = await client.PostAsync(Constants.MfaVerify, authBody);
                 htmlResponse.EnsureSuccessStatusCode();
                 htmlForm = await htmlResponse.Content.ReadAsStringAsync();
 
@@ -185,14 +189,14 @@ namespace TeslaApi.Internal
             Console.WriteLine($"Authorization Token: {authToken}");
 
             // Exchange the auth token for a bearer token.
-            htmlResponse = await client.PostAsync(TokenExchangeUrl, new StringContent(JsonSerializer.Serialize(
+            htmlResponse = await client.PostAsync(Constants.TokenExchangeUrl, new StringContent(JsonSerializer.Serialize(
                 new Dictionary<string, string>()
                 {
                     { "grant_type", "authorization_code" },
                     { "client_id", "ownerapi" },
                     { "code", authToken },
                     { "code_verifier", codeVerifierText },
-                    { "redirect_uri", RedirectUri }
+                    { "redirect_uri", Constants.RedirectUri }
                 }), Encoding.UTF8, "application/json"));
 
             string bearerTokenText = await htmlResponse.Content.ReadAsStringAsync();
@@ -218,12 +222,12 @@ namespace TeslaApi.Internal
 
             // Finally, exchange the bearer token for a long-lived access token.
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerTokenResponse.AccessToken);
-            htmlResponse = await client.PostAsync(OwnerApiTokenUrl, new StringContent(JsonSerializer.Serialize(
+            htmlResponse = await client.PostAsync(Constants.OwnerApiTokenUrl, new StringContent(JsonSerializer.Serialize(
                 new Dictionary<string, string>()
                 {
                     { "grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer" },
-                    { "client_id", TESLA_CLIENT_ID },
-                    { "client_secret", TESLA_CLIENT_SECRET }
+                    { "client_id", clientId },
+                    { "client_secret", clientSecret }
                 }), Encoding.UTF8, "application/json"));
 
             bearerTokenText = await htmlResponse.Content.ReadAsStringAsync();
@@ -240,12 +244,12 @@ namespace TeslaApi.Internal
 
         private static Uri BuildAuthUri(string challenge, string state)
         {
-            var builder = new UriBuilder(AuthUrl);
+            var builder = new UriBuilder(Constants.AuthUrl);
             var parameters = HttpUtility.ParseQueryString(string.Empty);
             parameters["client_id"] = "ownerapi";
             parameters["code_challenge"] = challenge;
             parameters["code_challenge_method"] = "S256";
-            parameters["redirect_uri"] = RedirectUri;
+            parameters["redirect_uri"] = Constants.RedirectUri;
             parameters["response_type"] = "code";
             parameters["scope"] = "openid email offline_access";
             parameters["state"] = state;

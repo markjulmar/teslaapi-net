@@ -1,7 +1,6 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace TeslaApp.Models
+namespace TeslaApi
 {
     public class DriveState
     {
