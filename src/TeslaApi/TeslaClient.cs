@@ -1,44 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
-using TeslaApi.Internal;
-using TeslaApi.Models;
+using Julmar.TeslaApi.Internal;
+using Julmar.TeslaApi.Models;
 
-namespace TeslaApi
+namespace Julmar.TeslaApi
 {
-    public class TeslaClient
+    [Flags]
+    public enum LogLevel
     {
-        public static ITeslaClient Create()
-        {
-            return new TeslaClientImpl();
-        }
-
-        public static ITeslaClient CreateFromToken(string token)
-        {
-            return new TeslaClientImpl(token);
-        }
+        None = 0,
+        Info = 1,
+        Query = 2,
+        Response = 4,
+        RawData = 8,
+        All = Info | Query | Response | RawData
     }
-
-    class TeslaClientImpl : ITeslaClient
+    
+    public class TeslaClient
     {
         private string refreshToken;
         private HttpClient client;
 
-        internal TeslaClientImpl(string accessToken = null)
+        public TeslaClient()
         {
-            AccessToken = accessToken;
             ClientId = Constants.TESLA_CLIENT_ID;
             ClientSecret = Constants.TESLA_CLIENT_SECRET;
         }
-
-        public string Email { get; private set; }
+        private TeslaClient(string accessToken = null) : this()
+        {
+            AccessToken = accessToken;
+        }
+        
+        public static TeslaClient CreateFromToken(string token)
+        {
+            return new TeslaClient(token);
+        }
+        
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
-        public Action<string> TraceLog { get; set; }
+        public Action<LogLevel, string> TraceLog { get; set; }
 
         private HttpClient Client
         {
@@ -66,43 +72,49 @@ namespace TeslaApi
         private async Task<T> GetOneAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
-            TraceLog?.Invoke($"=> {url}");
+            TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
             var result = await Client.GetAsync(url);
-            TraceLog?.Invoke($"<=\r\n{result}");
+            TraceLog?.Invoke(LogLevel.Response, result.ToString());
 
             if (!result.IsSuccessStatusCode)
             {
                 result.Content?.Dispose();
                 if (result.StatusCode == HttpStatusCode.RequestTimeout)
                     throw new SleepingException();
+                result.EnsureSuccessStatusCode();
             }
 
-            return JsonSerializer.Deserialize<OneResponse<T>>(await result.Content.ReadAsStringAsync()).Response;
+            string contents = await result.Content.ReadAsStringAsync();
+            TraceLog?.Invoke(LogLevel.RawData, contents);
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
         }
 
         private async Task<T> PostOneAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
-            TraceLog?.Invoke($"=> {url}");
+            TraceLog?.Invoke(LogLevel.Query, $"POST {url}");
             var result = await Client.PostAsync(url, new StringContent(""));
-            TraceLog?.Invoke($"<=\r\n{result}");
+            TraceLog?.Invoke(LogLevel.Response, result.ToString());
 
             if (!result.IsSuccessStatusCode)
             {
                 result.Content?.Dispose();
                 if (result.StatusCode == HttpStatusCode.RequestTimeout)
                     throw new SleepingException();
+                result.EnsureSuccessStatusCode();
             }
 
-            return JsonSerializer.Deserialize<OneResponse<T>>(await result.Content.ReadAsStringAsync()).Response;
+            string contents = await result.Content.ReadAsStringAsync();
+            TraceLog?.Invoke(LogLevel.RawData, contents);
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
         }
 
         private async Task<IReadOnlyList<T>> GetListAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
-            TraceLog?.Invoke($"=> {url}");
+            TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
             var result = await Client.GetAsync(url);
-            TraceLog?.Invoke($"<=\r\n{result}");
+            TraceLog?.Invoke(LogLevel.Response, result.ToString());
 
             if (!result.IsSuccessStatusCode)
             {
@@ -111,7 +123,9 @@ namespace TeslaApi
                     throw new SleepingException();
             }
 
-            return JsonSerializer.Deserialize<ListResponse<T>>(await result.Content.ReadAsStringAsync()).Response;
+            string contents = await result.Content.ReadAsStringAsync();
+            TraceLog?.Invoke(LogLevel.RawData, contents);
+            return JsonSerializer.Deserialize<ListResponse<T>>(contents).Response;
         }
 
         public async Task LoginAsync(string email, string password, Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
@@ -126,8 +140,7 @@ namespace TeslaApi
                 throw new ArgumentException($"'{nameof(ClientSecret)}' cannot be null or empty.", nameof(password));
 
             (AccessToken, refreshToken) = await Auth.GetAccessTokenAsync(email, password,
-                ClientId, ClientSecret,
-                multiFactorAuthResolver);
+                ClientId, ClientSecret, TraceLog, multiFactorAuthResolver);
         }
 
         public Task<IReadOnlyList<Vehicle>> GetVehiclesAsync() => GetListAsync<Vehicle>(string.Empty);
@@ -142,5 +155,6 @@ namespace TeslaApi
         public Task<VehicleState> GetVehicleStateAsync(long id) => GetOneAsync<VehicleState>($"{id}/data_request/vehicle_state");
         public Task<VehicleConfiguration> GetVehicleConfigurationAsync(long id) => GetOneAsync<VehicleConfiguration>($"{id}/data_request/vehicle_config");
         public Task<ChargingStations> GetNearbyChargingStations(long id) => GetOneAsync<ChargingStations>($"{id}/nearby_charging_sites");
+        public Task<VehicleDataRollup> GetAllVehicleDataAsync(long id) => GetOneAsync<VehicleDataRollup>($"{id}/vehicle_data");
     }
 }

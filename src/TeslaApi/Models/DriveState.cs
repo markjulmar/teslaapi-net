@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace TeslaApi
+namespace Julmar.TeslaApi
 {
     public class DriveState
     {

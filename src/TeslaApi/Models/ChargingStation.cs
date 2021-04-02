@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace TeslaApi.Models
+namespace Julmar.TeslaApi.Models
 {
     public class Location
     {

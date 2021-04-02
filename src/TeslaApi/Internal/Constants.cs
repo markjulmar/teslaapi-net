@@ -1,4 +1,4 @@
-﻿namespace TeslaApi.Internal
+﻿namespace Julmar.TeslaApi.Internal
 {
     internal static class Constants
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 
-namespace TeslaApi.Models
+namespace Julmar.TeslaApi
 {
     public class VehicleConfiguration
     {

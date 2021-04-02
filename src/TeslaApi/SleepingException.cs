@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace TeslaApi
+namespace Julmar.TeslaApi
 {
     public class SleepingException : Exception
     {

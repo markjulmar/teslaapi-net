@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace TeslaApi.Internal
+namespace Julmar.TeslaApi.Internal
 {
     class MultiFactorAuthType
     {

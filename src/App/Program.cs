@@ -1,45 +1,29 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
-using TeslaApi;
+using Julmar.TeslaApi;
 
 namespace TeslaApp
 {
-    class Program
+    public static class Program
     {
-        static async Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
-#if USE_EMAIL
+#if false
+            var api = new TeslaClient();
+            //DebugLogging(api);
+            
             string email = "elon@tesla.com";
-            string password = "spacex-rox";
-            string mfa_passcode = "12345";
-            string backup_passcode = null;
-
-            var api = TeslaClient.Create();
+            string password = "spacex-roxx";
             // Pass email, password and optional mfa resolver for Multi-Factor auth.
             // Can return either passcode from auth app, or backup passcode from MFA.
-            await api.LoginAsync(email, password, () => (mfa_passcode, backup_passcode));
+            await api.LoginAsync(email, password);
 #else
-            string accessToken = File.ReadAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "tesla-token.txt"));
+            string accessToken = await File.ReadAllTextAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "tesla-token.txt"));
             var api = TeslaClient.CreateFromToken(accessToken);
-#endif
-
-#if false
-            // Optional debugging - traces all HTTP traffic to/from.
-            api.TraceLog = s =>
-            {
-                var c = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                try
-                {
-                    Console.WriteLine(s);
-                }
-                finally
-                {
-                    Console.ForegroundColor = c;
-                }
-            };
+            DebugLogging(api);
 #endif
 
             // Get all vehicles on this account
@@ -82,6 +66,50 @@ namespace TeslaApp
             Console.WriteLine(nearbyChargers);
             Console.WriteLine(nearbyChargers.DestinationCharging.FirstOrDefault()?.ToString());
             Console.WriteLine(nearbyChargers.Superchargers.FirstOrDefault()?.ToString());
+
+            var allVehicleData = await api.GetAllVehicleDataAsync(myCar.Id);
+        }
+
+        static void DebugLogging(TeslaClient api)
+        {
+            // Optional debugging - traces all HTTP traffic to/from.
+            api.TraceLog = (level,s) =>
+            {
+                var c = Console.ForegroundColor;
+
+                switch (level)
+                {
+                    case LogLevel.Info: Console.ForegroundColor = ConsoleColor.Green;
+                        break;
+                    case LogLevel.Query: Console.ForegroundColor = ConsoleColor.Cyan;
+                        break;
+                    case LogLevel.Response: Console.ForegroundColor = ConsoleColor.Cyan;
+                        break;
+                    case LogLevel.RawData: Console.ForegroundColor = ConsoleColor.Yellow;
+                        break;
+                }
+
+                if (level == LogLevel.RawData)
+                {
+                    try
+                    {
+                        var doc = JsonDocument.Parse(s);
+                        s = JsonSerializer.Serialize(doc, new JsonSerializerOptions {WriteIndented = true});
+                    }
+                    catch
+                    {
+                    }
+                }
+                
+                try
+                {
+                    Console.WriteLine(s);
+                }
+                finally
+                {
+                    Console.ForegroundColor = c;
+                }
+            };
         }
     }
 }

@@ -2,6 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Julmar.TeslaApi</AssemblyName>
+    <RootNamespace>Julmar.TeslaApi</RootNamespace>
+    <PackageId>Julmar.TeslaApi</PackageId>
+    <PackageVersion>1.0.0-pre</PackageVersion>
+    <Title>.NET based Tesla API</Title>
+    <Authors>julmar.com</Authors>
+    <Description>.NET wrapper over the REST Tesla API</Description>
+    <Copyright>(c) 2021 julmar.com</Copyright>
+    <RepositoryUrl>https://github.com/markjulmar/teslaapi-net</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
