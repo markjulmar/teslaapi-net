@@ -2,7 +2,7 @@
 
 namespace Julmar.TeslaApi
 {
-    public class DriveState
+    public sealed class DriveState
     {
         [JsonPropertyName("gps_as_of")]
         public int GpsAsOf { get; set; }

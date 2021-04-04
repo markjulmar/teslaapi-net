@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public class SleepingException : Exception
+    public sealed class SleepingException : Exception
     {
         public SleepingException()
         {

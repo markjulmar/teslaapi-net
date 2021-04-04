@@ -154,23 +154,33 @@ namespace Julmar.TeslaApi
         /// Post a command with a boolean response.
         /// </summary>
         /// <param name="endpoint">Endpoint</param>
+        /// <param name="body">Body of the request</param>
         /// <returns>True/False</returns>
-        internal async Task<bool> PostCommandAsync(string endpoint) =>
-            (await PostOneAsync<OneResponse<CommandResponse>>(endpoint))
-            .Response.Result;
+        internal async Task<bool> PostCommandAsync(string endpoint, object body = null)
+        {
+            return (await PostOneAsync<OneResponse<CommandResponse>>(endpoint, body))
+                .Response.Result;
+        }
 
         /// <summary>
         /// POST a command and retrieve a single value from the Tesla API.
         /// </summary>
         /// <param name="endpoint">Endpoint to call</param>
+        /// <param name="body">Body of the request</param>
         /// <typeparam name="T">Returning type</typeparam>
         /// <returns>Return value from API</returns>
         /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
-        internal async Task<T> PostOneAsync<T>(string endpoint)
+        internal async Task<T> PostOneAsync<T>(string endpoint, object body = null)
         {
+            string bodyText = string.Empty;
+            if (body != null)
+            {
+                bodyText = body is string s ? s : JsonSerializer.Serialize(body, serializerOptions);
+            }
+            
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"POST {url}");
-            var result = await Client.PostAsync(url, new StringContent(""));
+            var result = await Client.PostAsync(url, new StringContent(bodyText));
             TraceLog?.Invoke(LogLevel.Response, result.ToString());
 
             if (!result.IsSuccessStatusCode)

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Julmar.TeslaApi.Models
+namespace Julmar.TeslaApi
 {
-    public class Location
+    public sealed class Location
     {
         [JsonPropertyName("lat")]
         public double Latitude { get; set; }
@@ -13,7 +13,7 @@ namespace Julmar.TeslaApi.Models
         public double Longitude { get; set; }
     }
 
-    public class DestinationCharging
+    public sealed class DestinationCharging
     {
         [JsonPropertyName("location")]
         public Location Location { get; set; }
@@ -33,7 +33,7 @@ namespace Julmar.TeslaApi.Models
         }
     }
 
-    public class Supercharger
+    public sealed class Supercharger
     {
         [JsonPropertyName("location")]
         public Location Location { get; set; }
@@ -63,7 +63,7 @@ namespace Julmar.TeslaApi.Models
         }
     }
 
-    public class ChargingStations
+    public sealed class ChargingStations
     {
         [JsonPropertyName("congestion_sync_time_utc_secs")]
         public int CongestionSyncTimeUtcSecs { get; set; }

@@ -2,7 +2,7 @@
 
 namespace Julmar.TeslaApi
 {
-    public class ClimateState
+    public sealed class ClimateState
     {
         [JsonPropertyName("battery_heater")]
         public bool BatteryHeater { get; set; }

@@ -3,13 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public class MediaState
+    public sealed class MediaState
     {
         [JsonPropertyName("remote_control_enabled")]
         public bool RemoteControlEnabled { get; set; }
     }
 
-    public class SoftwareUpdate
+    public sealed class SoftwareUpdate
     {
         [JsonPropertyName("download_perc")]
         public int DownloadPercentage { get; set; }
@@ -27,7 +27,7 @@ namespace Julmar.TeslaApi
         public string Version { get; set; }
     }
 
-    public class SpeedLimitMode
+    public sealed class SpeedLimitMode
     {
         [JsonPropertyName("active")]
         public bool Active { get; set; }
@@ -58,7 +58,7 @@ namespace Julmar.TeslaApi
         Media = 9
     }
 
-    public class VehicleState
+    public sealed class VehicleState
     {
         [JsonPropertyName("api_version")]
         public int ApiVersion { get; set; }

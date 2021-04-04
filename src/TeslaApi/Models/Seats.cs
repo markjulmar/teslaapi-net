@@ -1,4 +1,4 @@
-namespace Julmar.TeslaApi.Models
+namespace Julmar.TeslaApi
 {
     /// <summary>
     /// Seat

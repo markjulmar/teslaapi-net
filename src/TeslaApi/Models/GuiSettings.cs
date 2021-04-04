@@ -2,7 +2,7 @@
 
 namespace Julmar.TeslaApi
 {
-    public class GuiSettings
+    public sealed class GuiSettings
     {
         [JsonPropertyName("gui_24_hour_time")]
         public bool Use24HourTime { get; set; }

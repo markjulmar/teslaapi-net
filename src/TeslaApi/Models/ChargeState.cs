@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public class ChargeState
+    public sealed class ChargeState
     {
         [JsonPropertyName("battery_heater_on")]
         public bool BatteryHeaterOn { get; set; }

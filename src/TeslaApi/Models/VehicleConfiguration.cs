@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public class VehicleConfiguration
+    public sealed class VehicleConfiguration
     {
         [JsonPropertyName("can_accept_navigation_requests")]
         public bool CanAcceptNavigationRequests { get; set; }

@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Julmar.TeslaApi.Internal;
-using Julmar.TeslaApi.Models;
 
 namespace Julmar.TeslaApi
 {
@@ -18,10 +14,10 @@ namespace Julmar.TeslaApi
         /// <summary>
         /// Attach this vehicle to the client API
         /// </summary>
-        /// <param name="teslaClient"></param>
-        internal void SetClient(TeslaClient teslaClient)
+        /// <param name="client"></param>
+        internal void SetClient(TeslaClient client)
         {
-            this.teslaClient = teslaClient;
+            teslaClient = client;
         }
         
         /// <summary>
@@ -136,7 +132,7 @@ namespace Julmar.TeslaApi
         /// <param name="latitude">Current latitude.</param>
         /// <param name="longitude">Current longitude.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> TriggerHomelink(long id, double latitude, double longitude) => 
+        public Task<bool> TriggerHomelink(double latitude, double longitude) => 
             teslaClient.PostCommandAsync($"{Id}/command/trigger_homelink?lat={latitude}&lon={longitude}");
 
         /// <summary>
@@ -169,7 +165,7 @@ namespace Julmar.TeslaApi
         /// <returns>True on success.</returns>
         public Task<bool> DeactivateValetMode(string pinCode = null)
         {
-            if (pinCode != null && (pinCode.Length != 4 || pinCode.Any(ch => !char.IsNumber(ch))))
+            if (pinCode != null && (pinCode.Length != 4 || !int.TryParse(pinCode, out _)))
                 throw new ArgumentException("PIN must be 4 digits.");
             
             string url = $"{Id}/command/set_valet_mode?on=false";
@@ -328,5 +324,84 @@ namespace Julmar.TeslaApi
         public Task<bool> SetSteeringWheelHeater(bool onOff) =>
             teslaClient.PostCommandAsync(
                 $"{Id}/command/remote_steering_wheel_heater_request?on={onOff.ToString().ToLower()}");
+
+        /// <summary>
+        /// Toggles the media between playing and paused. For the radio, this mutes or unmutes the audio.
+        /// The car must be on.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaTogglePlayPause() => teslaClient.PostCommandAsync($"{Id}/command/media_toggle_playback");
+
+        /// <summary>
+        /// Skips to the next track in the current playlist, or to the next station.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaNextTrack() => teslaClient.PostCommandAsync($"{Id}/command/media_next_track");
+
+        /// <summary>
+        /// Skips to the previous track in the current playlist, or to the next station. Does nothing for streaming stations.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaPreviousTrack() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_track");
+
+        /// <summary>
+        /// Skips to the next saved favorite in the media system.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaNextFavorite() => teslaClient.PostCommandAsync($"{Id}/command/media_next_fav");
+        
+        /// <summary>
+        /// Skips to the previous saved favorite in the media system.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaPreviousFavorite() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_fav");
+        
+        /// <summary>
+        /// Turns up the volume of the media system.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaVolumeUp() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_up");
+        
+        /// <summary>
+        /// Turns down the volume of the media system.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> MediaVolumeDown() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_down");
+        
+        /// <summary>
+        /// Schedules a software update to be installed, if one is available.
+        /// </summary>
+        /// <param name="delayInSeconds">How many seconds in the future to schedule the update. Set to 0 for immediate install.</param>
+        /// <returns>True on success.</returns>
+        public Task<bool> ScheduleSoftwareUpdate(int delayInSeconds = 0) => teslaClient.PostCommandAsync($"{Id}/command/schedule_software_update");
+        
+        /// <summary>
+        /// Cancels a software update, if one is scheduled and has not yet started.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> CancelSoftwareUpdate() => teslaClient.PostCommandAsync($"{Id}/command/cancel_software_update");
+
+        /// <summary>
+        /// Set upcoming calendar entries.
+        /// </summary>
+        /// <returns>True on success.</returns>
+        public Task<bool> SetUpcomingCalendarEntries() => teslaClient.PostCommandAsync($"{Id}/command/upcoming_calendar_entries");
+
+        /// <summary>
+        /// Sends a location for the car to start navigation.
+        /// </summary>
+        /// <param name="address">Address to navigate to</param>
+        /// <param name="locale">Locale of address - if not supplied, current UI culture is used.</param>
+        /// <returns>True on success.</returns>
+        public Task<bool> ShareAddressForNavigation(string address, string locale = null) =>
+            teslaClient.PostCommandAsync($"{Id}/command/share", new ShareRequest(address, locale));
+
+        /// <summary>
+        /// Play a video in theatre mode.
+        /// </summary>
+        /// <param name="uri">Web address for video to play</param>
+        /// <returns>True on success.</returns>
+        public Task<bool> PlayFullscreenVideo(Uri uri) =>
+            teslaClient.PostCommandAsync($"{Id}/command/share", new ShareRequest(uri.AbsoluteUri));
     }
 }
