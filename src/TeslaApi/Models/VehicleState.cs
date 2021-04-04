@@ -85,7 +85,7 @@ namespace Julmar.TeslaApi
         public int DriverRear { get; set; }
 
         [JsonPropertyName("ft")]
-        public int FrontTrunk { get; set; }
+        public bool FrontTrunk { get; set; }
 
         [JsonPropertyName("homelink_device_count")]
         public int HomelinkDeviceCount { get; set; }
@@ -130,7 +130,7 @@ namespace Julmar.TeslaApi
         public bool RemoteStartSupported { get; set; }
 
         [JsonPropertyName("rt")]
-        public int RearTrunk { get; set; }
+        public bool RearTrunk { get; set; }
 
         [JsonPropertyName("sentry_mode")]
         public bool SentryMode { get; set; }

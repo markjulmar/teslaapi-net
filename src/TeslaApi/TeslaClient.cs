@@ -1,51 +1,100 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Julmar.TeslaApi.Internal;
-using Julmar.TeslaApi.Models;
 
 namespace Julmar.TeslaApi
 {
+    /// <summary>
+    /// Log level for the <see cref="TeslaClient.TraceLog"/> property.
+    /// </summary>
     [Flags]
     public enum LogLevel
     {
-        None = 0,
+        /// <summary>
+        /// Information and state data
+        /// </summary>
         Info = 1,
+        /// <summary>
+        /// HTTP queries
+        /// </summary>
         Query = 2,
+        /// <summary>
+        /// HTTP responses
+        /// </summary>
         Response = 4,
-        RawData = 8,
-        All = Info | Query | Response | RawData
+        /// <summary>
+        /// JSON data responses
+        /// </summary>
+        RawData = 8
     }
     
-    public class TeslaClient
+    /// <summary>
+    /// Main Tesla client API
+    /// </summary>
+    public class TeslaClient : IDisposable
     {
         private string refreshToken;
         private HttpClient client;
+        private JsonSerializerOptions serializerOptions;
 
+        /// <summary>
+        /// Constructor for the TeslaClient.
+        /// </summary>
         public TeslaClient()
         {
             ClientId = Constants.TESLA_CLIENT_ID;
             ClientSecret = Constants.TESLA_CLIENT_SECRET;
+            serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+            serializerOptions.Converters.Add(new IntToBoolJsonConverter());
         }
+        
+        /// <summary>
+        /// Internal constructor built around an access token.
+        /// </summary>
+        /// <param name="accessToken">Tesla owner account access token</param>
         private TeslaClient(string accessToken = null) : this()
         {
             AccessToken = accessToken;
         }
         
+        /// <summary>
+        /// Create a TeslaClient from an access token.
+        /// </summary>
+        /// <param name="token">Tesla owner account access token.</param>
+        /// <returns>TeslaAccount object</returns>
         public static TeslaClient CreateFromToken(string token)
         {
-            return new TeslaClient(token);
+            return new (token);
         }
         
+        /// <summary>
+        /// Client Id used to create owner account token. This is set to a default
+        /// value, but could be invalidated in the future by Tesla, in which case clients
+        /// can provide a new value through this property before logging in.
+        /// </summary>
         public string ClientId { get; set; }
+
+        /// <summary>
+        /// Client Secret used to create owner account token. This is set to a default
+        /// value, but could be invalidated in the future by Tesla, in which case clients
+        /// can provide a new value through this property before logging in.
+        /// </summary>
         public string ClientSecret { get; set; }
+        
+        /// <summary>
+        /// Diagnostic logging support. Set this to a delegate function which will be used
+        /// to log traffic through this TeslaClient object.
+        /// </summary>
         public Action<LogLevel, string> TraceLog { get; set; }
 
+        /// <summary>
+        /// Underlying web connection. Can be created as needed.
+        /// </summary>
         private HttpClient Client
         {
             get
@@ -63,13 +112,20 @@ namespace Julmar.TeslaApi
                 return client;
             }
         }
-
+        
         /// <summary>
         /// The Tesla access token being used.
         /// </summary>
         public string AccessToken { get; private set; }
 
-        private async Task<T> GetOneAsync<T>(string endpoint)
+        /// <summary>
+        /// Retrieve a single value from the Tesla API.
+        /// </summary>
+        /// <param name="endpoint">Endpoint to call</param>
+        /// <typeparam name="T">Returning type</typeparam>
+        /// <returns>Return value from API</returns>
+        /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
+        internal async Task<T> GetOneAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
@@ -79,17 +135,38 @@ namespace Julmar.TeslaApi
             if (!result.IsSuccessStatusCode)
             {
                 result.Content?.Dispose();
-                if (result.StatusCode == HttpStatusCode.RequestTimeout)
-                    throw new SleepingException();
+                switch (result.StatusCode)
+                {
+                    case HttpStatusCode.RequestTimeout:
+                        throw new SleepingException();
+                    case HttpStatusCode.NotFound:
+                        return default;
+                }
                 result.EnsureSuccessStatusCode();
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents, serializerOptions).Response;
         }
 
-        private async Task<T> PostOneAsync<T>(string endpoint)
+        /// <summary>
+        /// Post a command with a boolean response.
+        /// </summary>
+        /// <param name="endpoint">Endpoint</param>
+        /// <returns>True/False</returns>
+        internal async Task<bool> PostCommandAsync(string endpoint) =>
+            (await PostOneAsync<OneResponse<CommandResponse>>(endpoint))
+            .Response.Result;
+
+        /// <summary>
+        /// POST a command and retrieve a single value from the Tesla API.
+        /// </summary>
+        /// <param name="endpoint">Endpoint to call</param>
+        /// <typeparam name="T">Returning type</typeparam>
+        /// <returns>Return value from API</returns>
+        /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
+        internal async Task<T> PostOneAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"POST {url}");
@@ -99,17 +176,29 @@ namespace Julmar.TeslaApi
             if (!result.IsSuccessStatusCode)
             {
                 result.Content?.Dispose();
-                if (result.StatusCode == HttpStatusCode.RequestTimeout)
-                    throw new SleepingException();
+                switch (result.StatusCode)
+                {
+                    case HttpStatusCode.RequestTimeout:
+                        throw new SleepingException();
+                    case HttpStatusCode.NotFound:
+                        return default;
+                }
                 result.EnsureSuccessStatusCode();
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents, serializerOptions).Response;
         }
 
-        private async Task<IReadOnlyList<T>> GetListAsync<T>(string endpoint)
+        /// <summary>
+        /// Retrieve a set of values from the Tesla API.
+        /// </summary>
+        /// <param name="endpoint">Endpoint to call</param>
+        /// <typeparam name="T">Returning type</typeparam>
+        /// <returns>Return value from API</returns>
+        /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
+        internal async Task<IReadOnlyList<T>> GetListAsync<T>(string endpoint)
         {
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
@@ -119,15 +208,27 @@ namespace Julmar.TeslaApi
             if (!result.IsSuccessStatusCode)
             {
                 result.Content?.Dispose();
-                if (result.StatusCode == HttpStatusCode.RequestTimeout)
-                    throw new SleepingException();
+                switch (result.StatusCode)
+                {
+                    case HttpStatusCode.RequestTimeout:
+                        throw new SleepingException();
+                    case HttpStatusCode.NotFound:
+                        return null;
+                }
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<ListResponse<T>>(contents).Response;
+            return JsonSerializer.Deserialize<ListResponse<T>>(contents, serializerOptions).Response;
         }
 
+        /// <summary>
+        /// Login to the Tesla API and retrieve an owner API token.
+        /// </summary>
+        /// <param name="email">Email account tied to Tesla</param>
+        /// <param name="password">Password for the Tesla account</param>
+        /// <param name="multiFactorAuthResolver">Optional resolver for Multi-Factor auth.</param>
+        /// <exception cref="ArgumentException"></exception>
         public async Task LoginAsync(string email, string password, Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
         {
             if (string.IsNullOrEmpty(email))
@@ -143,18 +244,40 @@ namespace Julmar.TeslaApi
                 ClientId, ClientSecret, TraceLog, multiFactorAuthResolver);
         }
 
-        public Task<IReadOnlyList<Vehicle>> GetVehiclesAsync() => GetListAsync<Vehicle>(string.Empty);
-        public Task<Vehicle> GetVehicleAsync(long id) => GetOneAsync<Vehicle>(id.ToString());
-        public Task<Vehicle> WakeupAsync(long id) => PostOneAsync<Vehicle>($"{id}/wake_up");
+        /// <summary>
+        /// Retrieve a list of all the vehicles tied to this account.
+        /// </summary>
+        /// <returns>List of vehicles.</returns>
+        public async Task<IReadOnlyList<Vehicle>> GetVehiclesAsync()
+        {
+            var results = await GetListAsync<Vehicle>(string.Empty);
+            foreach (var vehicle in results)
+                vehicle.SetClient(this);
+            return results;
+        }
 
-        public Task<ChargeState> GetChargeStateAsync(long id) => GetOneAsync<ChargeState>($"{id}/data_request/charge_state");
-        public Task<ClimateState> GetClimateStateAsync(long id) => GetOneAsync<ClimateState>($"{id}/data_request/climate_state");
-        public Task<DriveState> GetDriveStateAsync(long id) => GetOneAsync<DriveState>($"{id}/data_request/drive_state");
-        public Task<bool> IsMobileAccessEnabledAsync(long id) => GetOneAsync<bool>($"{id}/mobile_enabled");
-        public Task<GuiSettings> GetGuiSettingsAsync(long id) => GetOneAsync<GuiSettings>($"{id}/data_request/gui_settings");
-        public Task<VehicleState> GetVehicleStateAsync(long id) => GetOneAsync<VehicleState>($"{id}/data_request/vehicle_state");
-        public Task<VehicleConfiguration> GetVehicleConfigurationAsync(long id) => GetOneAsync<VehicleConfiguration>($"{id}/data_request/vehicle_config");
-        public Task<ChargingStations> GetNearbyChargingStations(long id) => GetOneAsync<ChargingStations>($"{id}/nearby_charging_sites");
-        public Task<VehicleDataRollup> GetAllVehicleDataAsync(long id) => GetOneAsync<VehicleDataRollup>($"{id}/vehicle_data");
+        /// <summary>
+        /// Return a single vehicle object based on the unique identifier.
+        /// </summary>
+        /// <param name="id">Id of the car</param>
+        /// <returns>Vehicle object</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public async Task<Vehicle> GetVehicleAsync(long id)
+        {
+            if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+            var vehicle = await GetOneAsync<Vehicle>(id.ToString());
+            vehicle?.SetClient(this);
+            return vehicle;
+        }
+
+        /// <summary>
+        /// Dispose the underlying connection. Note that it can be
+        /// recreated by an attached vehicle.
+        /// </summary>
+        public void Dispose()
+        {
+            client?.Dispose();
+            client = null;
+        }
     }
 }

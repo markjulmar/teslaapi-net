@@ -39,35 +39,29 @@ namespace TeslaApp
             int count = 0;
             if (myCar.State != "online")
             {
-                myCar = await api.WakeupAsync(myCar.Id);
-                while (myCar.State != "online")
-                {
-                    await Task.Delay(1000);
-                    myCar = await api.WakeupAsync(myCar.Id);
-                    if (count++ > 10)
-                    {
-                        Console.WriteLine("Could not wake up the car.");
-                        return;
-                    }
-                }
+                while (!await myCar.WakeupAsync() && count++ < 10)
+                    await Task.Delay(5000);
             }
 
             // Test state APIs
-            Console.WriteLine($"Mobile access enabled: {await api.IsMobileAccessEnabledAsync(myCar.Id)}");
+            Console.WriteLine($"Mobile access enabled: {await myCar.IsMobileAccessEnabledAsync()}");
 
-            Console.WriteLine(await api.GetChargeStateAsync(myCar.Id));
-            Console.WriteLine(await api.GetClimateStateAsync(myCar.Id));
-            Console.WriteLine(await api.GetDriveStateAsync(myCar.Id));
-            Console.WriteLine(await api.GetGuiSettingsAsync(myCar.Id));
-            Console.WriteLine(await api.GetVehicleStateAsync(myCar.Id));
-            Console.WriteLine(await api.GetVehicleConfigurationAsync(myCar.Id));
+            Console.WriteLine(await myCar.GetChargeStateAsync());
+            Console.WriteLine(await myCar.GetClimateStateAsync());
+            Console.WriteLine(await myCar.GetDriveStateAsync());
+            Console.WriteLine(await myCar.GetGuiSettingsAsync());
+            Console.WriteLine(await myCar.GetVehicleStateAsync());
+            Console.WriteLine(await myCar.GetVehicleConfigurationAsync());
 
-            var nearbyChargers = await api.GetNearbyChargingStations(myCar.Id);
+            var nearbyChargers = await myCar.GetNearbyChargingStations();
             Console.WriteLine(nearbyChargers);
             Console.WriteLine(nearbyChargers.DestinationCharging.FirstOrDefault()?.ToString());
             Console.WriteLine(nearbyChargers.Superchargers.FirstOrDefault()?.ToString());
 
-            var allVehicleData = await api.GetAllVehicleDataAsync(myCar.Id);
+            var allVehicleData = await myCar.GetAllVehicleDataAsync();
+            Console.WriteLine(allVehicleData.VIN);
+
+            await myCar.HonkHorn();
         }
 
         static void DebugLogging(TeslaClient api)

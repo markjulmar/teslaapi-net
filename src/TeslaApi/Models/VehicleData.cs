@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public class VehicleDataRollup : Vehicle
+    public class VehicleDataRollup : VehicleInfo
     {
         [JsonPropertyName("access_type")]
         public string AccessType { get; set; }
