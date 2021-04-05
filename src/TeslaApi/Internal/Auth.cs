@@ -13,9 +13,25 @@ using HtmlAgilityPack;
 
 namespace Julmar.TeslaApi.Internal
 {
+    /// <summary>
+    /// Class to manage authentication to the Tesla API.
+    /// This supports both standard and multi-factor auth.
+    /// </summary>
     internal static class Auth
     {
-        public static async Task<(string accessToken, string refreshToken)> GetAccessTokenAsync(
+        /// <summary>
+        /// Retrieves an owner access token from a user/password.
+        /// </summary>
+        /// <param name="user">Email for Telsa account</param>
+        /// <param name="password">Password for account</param>
+        /// <param name="clientId">OAuth exchange client Id</param>
+        /// <param name="clientSecret">OAuth exchange client Secret</param>
+        /// <param name="logger">Optional logger</param>
+        /// <param name="multiFactorAuthResolver">MFA resolver to retrieve passcode or backup code.</param>
+        /// <returns>access token and refresh token</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="Exception"></exception>
+        internal static async Task<AccessToken> GetAccessTokenAsync(
             string user, string password,
             string clientId, string clientSecret,
             Action<LogLevel, string> logger,
@@ -38,19 +54,15 @@ namespace Julmar.TeslaApi.Internal
             string state = GetRandomAlphaText(20);
             var uri = BuildAuthUri(codeChallenge, state);
 
-            // Will return 'tesla-auth.sid' as cookie.
-            HttpClientHandler handler = new() { AllowAutoRedirect = false, CookieContainer = new CookieContainer() };
-
             logger?.Invoke(LogLevel.Info, "Step 1: Obtain the login page.");
             
-            // Use curl as agent
-            using var client = new HttpClient(handler);
-            client.DefaultRequestHeaders.Add("User-Agent", "curl / 6.14.0");
+            var client = BuildHttpClient();
             logger?.Invoke(LogLevel.Query, $"GET {uri}");
             var htmlResponse = await client.GetAsync(uri);
             logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
 
-            htmlResponse.EnsureSuccessStatusCode();
+            if (!htmlResponse.IsSuccessStatusCode)
+                throw new TeslaAuthenticationException((int) htmlResponse.StatusCode, htmlResponse.ReasonPhrase);
 
             // Grab the form and all the hidden input fields.
             var htmlForm = await htmlResponse.Content.ReadAsStringAsync();
@@ -162,13 +174,16 @@ namespace Julmar.TeslaApi.Internal
                     }
 
                     if (authBody == null)
-                        throw new Exception("Account has multi-factor authentication enabled. You must supply a passcode or backup passcode.");
+                        throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized,
+                            "Account has multi-factor authentication enabled. You must supply a passcode or backup passcode.");
 
                     logger?.Invoke(LogLevel.Query, $"POST {Constants.MfaVerify}");
                     htmlResponse = await client.PostAsync(Constants.MfaVerify, authBody);
                     logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
                     
-                    htmlResponse.EnsureSuccessStatusCode();
+                    if (!htmlResponse.IsSuccessStatusCode)
+                        throw new TeslaAuthenticationException((int) htmlResponse.StatusCode, htmlResponse.ReasonPhrase);
+
                     htmlForm = await htmlResponse.Content.ReadAsStringAsync();
                     logger?.Invoke(LogLevel.RawData, htmlForm);
 
@@ -178,16 +193,17 @@ namespace Julmar.TeslaApi.Internal
                         {
                             var authValid = JsonSerializer.Deserialize<AuthWrapper<MultiFactorPasscodeAuthValidation>>(htmlForm).Data;
                             if (!authValid.Valid || authValid.Flagged || !authValid.Approved)
-                                throw new Exception("Passcode could not be validated.");
+                                throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized, 
+                                    "MFA Passcode could not be validated.");
                         }
                         else
                         {
                             var authValid = JsonSerializer.Deserialize<AuthWrapper<MultiFactorBackupCodeAuthValidation>>(htmlForm).Data;
-                            if (!authValid.Valid)
-                                throw new Exception("Backup code could not be validated.");
+                            if (!authValid.Valid || authValid.Locked)
+                                throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized, "Backup code could not be validated.");
                         }
                     }
-                    else throw new Exception($"Multi-factor authentication failed: {htmlForm}");
+                    else throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized, $"Multi-factor authentication failed: {htmlForm}");
                 }
 
                 // Send request again, should get redirect (302) with location.
@@ -200,13 +216,13 @@ namespace Julmar.TeslaApi.Internal
 
             // We should have a 302 redirect at this point.
             if (htmlResponse.StatusCode != HttpStatusCode.Redirect)
-                throw new Exception("Unexpected authentication flow, could not sign in.");
+                throw new TeslaAuthenticationException((int) HttpStatusCode.BadRequest, "Unexpected authentication flow, could not sign in.");
 
             // Get the location - it's fake but has the code.
             var location = htmlResponse.Headers.Location;
             var authToken = HttpUtility.ParseQueryString(location.Query).Get("code");
             if (authToken == null)
-                throw new Exception("Unable to get authorization token from Tesla login.");
+                throw new TeslaAuthenticationException((int) HttpStatusCode.BadRequest, "Unable to get authorization token from Tesla login.");
 
             logger?.Invoke(LogLevel.Info, $"Step 3: Exchange authorization code for bearer token.");
 
@@ -236,35 +252,129 @@ namespace Julmar.TeslaApi.Internal
 
             var bearerTokenResponse = JsonSerializer.Deserialize<BearerTokenResponse>(bearerTokenText);
             if (bearerTokenResponse?.TokenType != "Bearer")
-                throw new Exception("Failed to exchange the authentication token for a bearer token.");
+                throw new TeslaAuthenticationException((int) HttpStatusCode.BadRequest, "Failed to exchange the authentication token for a bearer token.");
 
             // This is the one to save. The owner API one below is a dummy value.
-            string refreshToken = bearerTokenResponse.RefreshToken;
+            var tokenResponse = new AccessToken
+            {
+                RefreshToken = bearerTokenResponse.RefreshToken
+            };
 
             logger?.Invoke(LogLevel.Info, $"Step 4: exchange bearer token for owner API auth token.");
+            bearerTokenResponse = await ExchangeTokenAsync(client, clientId, clientSecret, bearerTokenResponse.AccessToken, logger);
 
+            tokenResponse.CreatedTimeUtc = DateTimeOffset.FromUnixTimeSeconds(bearerTokenResponse.CreatedAt).UtcDateTime;
+            tokenResponse.ExpirationTimeUtc = DateTime.UtcNow.AddSeconds(bearerTokenResponse.ExpiresInSeconds);
+            tokenResponse.Token = bearerTokenResponse.AccessToken;
+
+            return tokenResponse;
+        }
+
+        private static async Task<BearerTokenResponse> ExchangeTokenAsync(HttpClient client, string clientId, string clientSecret,
+            string accessToken, Action<LogLevel, string> logger)
+        {
             // Finally, exchange the bearer token for a long-lived access token.
             logger?.Invoke(LogLevel.Query, $"POST {Constants.OwnerApiTokenUrl}");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerTokenResponse.AccessToken);
-            htmlResponse = await client.PostAsync(Constants.OwnerApiTokenUrl, new StringContent(JsonSerializer.Serialize(
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", accessToken);
+            var htmlResponse = await client.PostAsync(Constants.OwnerApiTokenUrl, new StringContent(JsonSerializer.Serialize(
                 new Dictionary<string, string>
                 {
-                    { "grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer" },
-                    { "client_id", clientId },
-                    { "client_secret", clientSecret }
+                    {"grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+                    {"client_id", clientId},
+                    {"client_secret", clientSecret}
                 }), Encoding.UTF8, "application/json"));
             logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
 
-            bearerTokenText = await htmlResponse.Content.ReadAsStringAsync();
+            var bearerTokenText = await htmlResponse.Content.ReadAsStringAsync();
             logger?.Invoke(LogLevel.RawData, bearerTokenText);
 
-            bearerTokenResponse = JsonSerializer.Deserialize<BearerTokenResponse>(bearerTokenText);
-            if (bearerTokenResponse?.TokenType != "bearer")
-                throw new Exception("Failed to exchange the bearer token for an owner access token.");
+            var accessTokenResponse = JsonSerializer.Deserialize<BearerTokenResponse>(bearerTokenText);
+            if (accessTokenResponse?.TokenType != "bearer")
+                throw new TeslaAuthenticationException((int) HttpStatusCode.BadRequest, "Failed to exchange the bearer token for an owner access token.");
 
-            return (bearerTokenResponse.AccessToken, refreshToken);
+            return accessTokenResponse;
         }
 
+        /// <summary>
+        /// Revokes the supplied access token issued by the token command.
+        /// </summary>
+        /// <param name="accessToken">Access token to revoke</param>
+        /// <param name="logger">Optional logger</param>
+        internal static async Task RevokeTokenAsync(string accessToken, Action<LogLevel, string> logger = null)
+        {
+            logger?.Invoke(LogLevel.Query, $"POST {Constants.OwnerApiTokenRevokeUrl}");
+            var client = BuildHttpClient();
+            var htmlResponse = await client.PostAsync(Constants.OwnerApiTokenRevokeUrl, new StringContent(JsonSerializer.Serialize(
+                new Dictionary<string, string> {{ "token", accessToken }}), Encoding.UTF8, "application/json"));
+            logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
+        }
+
+        /// <summary>
+        /// Create a new http client.
+        /// </summary>
+        private static HttpClient BuildHttpClient()
+        {
+            var client =new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() });
+            client.DefaultRequestHeaders.Add("User-Agent", "curl / 6.14.0");
+            return client;
+        }
+        
+        /// <summary>
+        /// Refresh the access token.
+        /// </summary>
+        /// <param name="refreshToken"></param>
+        /// <param name="clientId">OAuth exchange client Id</param>
+        /// <param name="clientSecret">OAuth exchange client Secret</param>
+        /// <param name="logger"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        internal static async Task<AccessToken> RefreshTokenAsync(string refreshToken,
+            string clientId, string clientSecret, Action<LogLevel, string> logger = null)
+        {
+            logger?.Invoke(LogLevel.Query, $"POST {Constants.TokenExchangeUrl}");
+
+            var client = BuildHttpClient();
+            var htmlResponse = await client.PostAsync(Constants.TokenExchangeUrl, new StringContent(JsonSerializer.Serialize(
+                new Dictionary<string, string>
+                {
+                    { "grant_type", "refresh_token" },
+                    { "client_id", "ownerapi" },
+                    { "refresh_token", refreshToken },
+                    { "scope", "openid email offline_access" }
+                }), Encoding.UTF8, "application/json"));
+            logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
+
+            var bearerTokenText = await htmlResponse.Content.ReadAsStringAsync();
+            logger?.Invoke(LogLevel.RawData, bearerTokenText);
+
+            //{
+            //  "access_token": "xyx",
+            //  "refresh_token": "xyz",
+            //  "expires_in": 300,
+            //  "id_token": "id",
+            //  "token_type": "Bearer"
+            //}
+
+            var bearerTokenResponse = JsonSerializer.Deserialize<BearerTokenResponse>(bearerTokenText);
+            if (bearerTokenResponse?.TokenType != "Bearer")
+                throw new Exception("Failed to exchange the bearer token for an owner access token.");
+
+            // This is the one to save. The owner API one below is a dummy value.
+            var tokenResponse = new AccessToken
+            {
+                RefreshToken = bearerTokenResponse.RefreshToken
+            };
+
+            logger?.Invoke(LogLevel.Info, $"Refresh: exchange bearer token for owner API auth token.");
+            bearerTokenResponse = await ExchangeTokenAsync(client, clientId, clientSecret, bearerTokenResponse.AccessToken, logger);
+
+            tokenResponse.CreatedTimeUtc = DateTimeOffset.FromUnixTimeSeconds(bearerTokenResponse.CreatedAt).UtcDateTime;
+            tokenResponse.ExpirationTimeUtc = DateTime.UtcNow.AddSeconds(bearerTokenResponse.ExpiresInSeconds);
+            tokenResponse.Token = bearerTokenResponse.AccessToken;
+            return tokenResponse;
+        }
+        
         private static Uri BuildAuthUri(string challenge, string state)
         {
             var builder = new UriBuilder(Constants.AuthUrl);

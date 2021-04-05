@@ -38,9 +38,8 @@ namespace Julmar.TeslaApi
     /// </summary>
     public class TeslaClient : IDisposable
     {
-        private string refreshToken;
+        private string accessToken;
         private HttpClient client;
-        private JsonSerializerOptions serializerOptions;
 
         /// <summary>
         /// Constructor for the TeslaClient.
@@ -49,17 +48,15 @@ namespace Julmar.TeslaApi
         {
             ClientId = Constants.TESLA_CLIENT_ID;
             ClientSecret = Constants.TESLA_CLIENT_SECRET;
-            serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-            serializerOptions.Converters.Add(new IntToBoolJsonConverter());
         }
         
         /// <summary>
         /// Internal constructor built around an access token.
         /// </summary>
         /// <param name="accessToken">Tesla owner account access token</param>
-        private TeslaClient(string accessToken = null) : this()
+        private TeslaClient(string accessToken) : this()
         {
-            AccessToken = accessToken;
+            this.accessToken = accessToken;
         }
         
         /// <summary>
@@ -91,6 +88,11 @@ namespace Julmar.TeslaApi
         /// to log traffic through this TeslaClient object.
         /// </summary>
         public Action<LogLevel, string> TraceLog { get; set; }
+        
+        /// <summary>
+        /// Function to auto-refresh token and reissue any failing call.
+        /// </summary>
+        public Func<AccessToken> AutoRefreshToken { get; set; }
 
         /// <summary>
         /// Underlying web connection. Can be created as needed.
@@ -101,31 +103,27 @@ namespace Julmar.TeslaApi
             {
                 if (client == null)
                 {
-                    if (AccessToken == null)
+                    if (accessToken == null)
                         throw new Exception("Must use Login method before using any API methods.");
 
                     HttpClientHandler handler = new() { AllowAutoRedirect = false, CookieContainer = new CookieContainer() };
                     client = new HttpClient(handler);
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                 }
 
                 return client;
             }
         }
-        
-        /// <summary>
-        /// The Tesla access token being used.
-        /// </summary>
-        public string AccessToken { get; private set; }
 
         /// <summary>
         /// Retrieve a single value from the Tesla API.
         /// </summary>
         /// <param name="endpoint">Endpoint to call</param>
+        /// <param name="isRetryWithNewAccessToken">True if this is a recursive call</param>
         /// <typeparam name="T">Returning type</typeparam>
         /// <returns>Return value from API</returns>
         /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
-        internal async Task<T> GetOneAsync<T>(string endpoint)
+        internal async Task<T> GetOneAsync<T>(string endpoint, bool isRetryWithNewAccessToken = false)
         {
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
@@ -141,13 +139,29 @@ namespace Julmar.TeslaApi
                         throw new SleepingException();
                     case HttpStatusCode.NotFound:
                         return default;
+                    case HttpStatusCode.Forbidden:
+                    case HttpStatusCode.Unauthorized:
+                        if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
+                        {
+                            var authResponse = AutoRefreshToken.Invoke();
+                            if (authResponse?.Token != null)
+                            {
+                                client.Dispose();
+                                client = null;
+                                accessToken = authResponse.Token;
+                                return await GetOneAsync<T>(endpoint, true);
+                            }
+                        }
+                        throw new InvalidTokenException();
+                    default:
+                        result.EnsureSuccessStatusCode();
+                        break;
                 }
-                result.EnsureSuccessStatusCode();
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<OneResponse<T>>(contents, serializerOptions).Response;
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
         }
 
         /// <summary>
@@ -167,15 +181,16 @@ namespace Julmar.TeslaApi
         /// </summary>
         /// <param name="endpoint">Endpoint to call</param>
         /// <param name="body">Body of the request</param>
+        /// <param name="isRetryWithNewAccessToken">True when this is a retry due to a failed token</param>
         /// <typeparam name="T">Returning type</typeparam>
         /// <returns>Return value from API</returns>
         /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
-        internal async Task<T> PostOneAsync<T>(string endpoint, object body = null)
+        internal async Task<T> PostOneAsync<T>(string endpoint, object body = null, bool isRetryWithNewAccessToken = false)
         {
             string bodyText = string.Empty;
             if (body != null)
             {
-                bodyText = body is string s ? s : JsonSerializer.Serialize(body, serializerOptions);
+                bodyText = body is string s ? s : JsonSerializer.Serialize(body);
             }
             
             string url = Constants.VehiclesApi + endpoint;
@@ -192,23 +207,40 @@ namespace Julmar.TeslaApi
                         throw new SleepingException();
                     case HttpStatusCode.NotFound:
                         return default;
+                    case HttpStatusCode.Forbidden:
+                    case HttpStatusCode.Unauthorized:
+                        if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
+                        {
+                            var authResponse = AutoRefreshToken.Invoke();
+                            if (authResponse?.Token != null)
+                            {
+                                client.Dispose();
+                                client = null;
+                                accessToken = authResponse.Token;
+                                return await PostOneAsync<T>(endpoint, body, true);
+                            }
+                        }
+                        throw new InvalidTokenException();
+                    default:
+                        result.EnsureSuccessStatusCode();
+                        break;
                 }
-                result.EnsureSuccessStatusCode();
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<OneResponse<T>>(contents, serializerOptions).Response;
+            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
         }
 
         /// <summary>
         /// Retrieve a set of values from the Tesla API.
         /// </summary>
         /// <param name="endpoint">Endpoint to call</param>
+        /// <param name="isRetryWithNewAccessToken">True if this is a retry due to a failed access token</param>
         /// <typeparam name="T">Returning type</typeparam>
         /// <returns>Return value from API</returns>
         /// <exception cref="SleepingException">Car is asleep and not accepting commands.</exception>
-        internal async Task<IReadOnlyList<T>> GetListAsync<T>(string endpoint)
+        internal async Task<IReadOnlyList<T>> GetListAsync<T>(string endpoint, bool isRetryWithNewAccessToken = false)
         {
             string url = Constants.VehiclesApi + endpoint;
             TraceLog?.Invoke(LogLevel.Query, $"GET {url}");
@@ -224,12 +256,29 @@ namespace Julmar.TeslaApi
                         throw new SleepingException();
                     case HttpStatusCode.NotFound:
                         return null;
+                    case HttpStatusCode.Forbidden:
+                    case HttpStatusCode.Unauthorized:
+                        if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
+                        {
+                            var authResponse = AutoRefreshToken.Invoke();
+                            if (authResponse?.Token != null)
+                            {
+                                client.Dispose();
+                                client = null;
+                                accessToken = authResponse.Token;
+                                return await GetListAsync<T>(endpoint, true);
+                            }
+                        }
+                        throw new InvalidTokenException();
+                    default:
+                        result.EnsureSuccessStatusCode();
+                        break;
                 }
             }
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<ListResponse<T>>(contents, serializerOptions).Response;
+            return JsonSerializer.Deserialize<ListResponse<T>>(contents).Response;
         }
 
         /// <summary>
@@ -238,20 +287,80 @@ namespace Julmar.TeslaApi
         /// <param name="email">Email account tied to Tesla</param>
         /// <param name="password">Password for the Tesla account</param>
         /// <param name="multiFactorAuthResolver">Optional resolver for Multi-Factor auth.</param>
+        /// <returns>Access token information</returns>
         /// <exception cref="ArgumentException"></exception>
-        public async Task LoginAsync(string email, string password, Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
+        public async Task<AccessToken> LoginAsync(string email, string password, Func<(string passcode, string backupPasscode)> multiFactorAuthResolver = null)
         {
             if (string.IsNullOrEmpty(email))
                 throw new ArgumentException($"'{nameof(email)}' cannot be null or empty.", nameof(email));
             if (string.IsNullOrEmpty(password))
                 throw new ArgumentException($"'{nameof(password)}' cannot be null or empty.", nameof(password));
             if (string.IsNullOrEmpty(ClientId))
-                throw new ArgumentException($"'{nameof(ClientId)}' cannot be null or empty.", nameof(password));
+                throw new ArgumentException($"'{nameof(ClientId)}' cannot be null or empty.", nameof(ClientId));
             if (string.IsNullOrEmpty(ClientSecret))
-                throw new ArgumentException($"'{nameof(ClientSecret)}' cannot be null or empty.", nameof(password));
+                throw new ArgumentException($"'{nameof(ClientSecret)}' cannot be null or empty.", nameof(ClientSecret));
 
-            (AccessToken, refreshToken) = await Auth.GetAccessTokenAsync(email, password,
-                ClientId, ClientSecret, TraceLog, multiFactorAuthResolver);
+            try
+            {
+                return await Auth.GetAccessTokenAsync(email, password,
+                    ClientId, ClientSecret, TraceLog, multiFactorAuthResolver);
+            }
+            catch (TeslaAuthenticationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new TeslaAuthenticationException((int) HttpStatusCode.FailedDependency, "Failed to refresh token.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Used to revoke an app token
+        /// </summary>
+        /// <param name="token">Token to revoke</param>
+        /// <exception cref="TeslaAuthenticationException"></exception>
+        public Task RevokeTokenAsync(string token)
+        {
+            try
+            {
+                return Auth.RevokeTokenAsync(token, TraceLog);
+            }
+            catch (TeslaAuthenticationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new TeslaAuthenticationException((int) HttpStatusCode.FailedDependency, "Failed to refresh token.", ex);
+            }
+        }
+        
+        /// <summary>
+        /// Method to refresh the access token from a refresh token.
+        /// </summary>
+        /// <param name="refreshToken">Refresh token</param>
+        /// <returns>New access token information</returns>
+        /// <exception cref="ArgumentException"></exception>
+        public async Task<AccessToken> RefreshLoginAsync(string refreshToken)
+        {
+            if (string.IsNullOrEmpty(ClientId))
+                throw new ArgumentException($"'{nameof(ClientId)}' cannot be null or empty.", nameof(ClientId));
+            if (string.IsNullOrEmpty(ClientSecret))
+                throw new ArgumentException($"'{nameof(ClientSecret)}' cannot be null or empty.", nameof(ClientSecret));
+
+            try
+            {
+                return await Auth.RefreshTokenAsync(refreshToken, ClientId, ClientSecret, TraceLog);
+            }
+            catch (TeslaAuthenticationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new TeslaAuthenticationException((int) HttpStatusCode.FailedDependency, "Failed to refresh token.", ex);
+            }
         }
 
         /// <summary>

@@ -9,25 +9,30 @@ namespace Julmar.TeslaApi.Internal
     /// <summary>
     /// Allow boolean representations from integer values.
     /// </summary>
-    public class IntToBoolJsonConverter : JsonConverter<bool>
+    internal class IntToBoolJsonConverter : JsonConverter<bool>
     {
+        /// <summary>Reads and converts the JSON to type <typeparamref name="T" />.</summary>
+        /// <param name="reader">The reader.</param>
+        /// <param name="typeToConvert">The type to convert.</param>
+        /// <param name="options">An object that specifies serialization options to use.</param>
+        /// <returns>The converted value.</returns>
         public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType == JsonTokenType.Number)
+            switch (reader.TokenType)
             {
-                int value = reader.GetInt32();
-                return value != 0;
+                case JsonTokenType.Number:
+                    return reader.GetInt32() != 0;
+                case JsonTokenType.String:
+                    return bool.TryParse(reader.GetString(), out var result) && result;
+                default:
+                    return reader.GetBoolean();
             }
-
-            if (reader.TokenType == JsonTokenType.String)
-            {
-                string value = reader.GetString();
-                return bool.TryParse(value, out var result) && result;
-            }
-
-            return reader.GetBoolean();
         }
-        
+
+        /// <summary>Writes a specified value as JSON.</summary>
+        /// <param name="writer">The writer to write to.</param>
+        /// <param name="value">The value to convert to JSON.</param>
+        /// <param name="options">An object that specifies serialization options to use.</param>
         public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
         {
             writer.WriteBooleanValue(value);

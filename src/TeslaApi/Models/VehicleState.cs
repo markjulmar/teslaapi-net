@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using Julmar.TeslaApi.Internal;
 
 namespace Julmar.TeslaApi
 {
@@ -84,7 +85,7 @@ namespace Julmar.TeslaApi
         [JsonPropertyName("dr")]
         public int DriverRear { get; set; }
 
-        [JsonPropertyName("ft")]
+        [JsonPropertyName("ft"), JsonConverter(typeof(IntToBoolJsonConverter))]
         public bool FrontTrunk { get; set; }
 
         [JsonPropertyName("homelink_device_count")]
@@ -129,7 +130,7 @@ namespace Julmar.TeslaApi
         [JsonPropertyName("remote_start_supported")]
         public bool RemoteStartSupported { get; set; }
 
-        [JsonPropertyName("rt")]
+        [JsonPropertyName("rt"), JsonConverter(typeof(IntToBoolJsonConverter))]
         public bool RearTrunk { get; set; }
 
         [JsonPropertyName("sentry_mode")]

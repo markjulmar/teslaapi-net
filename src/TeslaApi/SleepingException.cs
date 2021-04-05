@@ -3,7 +3,12 @@ using System.Runtime.Serialization;
 
 namespace Julmar.TeslaApi
 {
-    public sealed class SleepingException : Exception
+    /// <summary>
+    /// Thrown when the vehicle is asleep and unable to accept commands. You can call
+    /// <see cref="Vehicle.WakeAsync"/> to wake the vehicle up.
+    /// </summary>
+    [Serializable]
+    public class SleepingException : Exception
     {
         public SleepingException()
         {

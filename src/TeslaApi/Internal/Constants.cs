@@ -1,5 +1,8 @@
 ﻿namespace Julmar.TeslaApi.Internal
 {
+    /// <summary>
+    /// Strings
+    /// </summary>
     internal static class Constants
     {
         public const string TeslaAuth = "https://auth.tesla.com/";
@@ -12,6 +15,7 @@
         public const string OwnerEndpoint = "https://owner-api.teslamotors.com/";
         public const string OwnerApiEndpoint = OwnerEndpoint + "api/";
         public const string OwnerApiTokenUrl = OwnerEndpoint + "oauth/token";
+        public const string OwnerApiTokenRevokeUrl = OwnerEndpoint + "oauth/revoke";
         public const string VehiclesApi = OwnerApiEndpoint + "1/vehicles/";
 
         public const string TESLA_CLIENT_ID = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384";
