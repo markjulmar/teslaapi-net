@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Julmar.TeslaApi</AssemblyName>
+    <RootNamespace>Julmar.TeslaApi</RootNamespace>
+    <PackageId>Julmar.TeslaApi</PackageId>
+    <PackageVersion>1.0.0-pre</PackageVersion>
+    <Title>.NET based Tesla API</Title>
+    <Authors>julmar.com</Authors>
+    <Description>.NET wrapper over the REST Tesla API</Description>
+    <Copyright>(c) 2021 julmar.com</Copyright>
+    <RepositoryUrl>https://github.com/markjulmar/teslaapi-net</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <Folder Include="Internal\" />
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <LangVersion>latestmajor</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <LangVersion>latestmajor</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.32" />
+    <PackageReference Include="System.Text.Json" Version="5.0.1" />
+  </ItemGroup>
+
+</Project>
