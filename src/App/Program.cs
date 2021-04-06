@@ -28,7 +28,7 @@ namespace TeslaApp
             var api = TeslaClient.CreateFromToken(accessToken);
             DebugLogging(api);
 
-            //var response = await api.RefreshLoginAsync("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ilg0RmNua0RCUVBUTnBrZTZiMnNuRi04YmdVUSJ9.eyJpc3MiOiJodHRwczovL2F1dGgudGVzbGEuY29tL29hdXRoMi92MyIsImF1ZCI6Imh0dHBzOi8vYXV0aC50ZXNsYS5jb20vb2F1dGgyL3YzL3Rva2VuIiwiaWF0IjoxNjE3MzE5MDk3LCJzY3AiOlsib3BlbmlkIiwib2ZmbGluZV9hY2Nlc3MiXSwiZGF0YSI6eyJ2IjoiMSIsImF1ZCI6Imh0dHBzOi8vb3duZXItYXBpLnRlc2xhbW90b3JzLmNvbS8iLCJzdWIiOiJhMGUwNDE4Yi02YjIwLTRhN2ItOGE5NS1lY2JkYTg4YzMxMGEiLCJzY3AiOlsib3BlbmlkIiwiZW1haWwiLCJvZmZsaW5lX2FjY2VzcyJdLCJhenAiOiJvd25lcmFwaSIsImFtciI6WyJwd2QiLCJtZmEiLCJvdHAiXSwiYXV0aF90aW1lIjoxNjE3MzE5MDk3fX0.wHJ68BH9lg2fMfbYQcx3Q-S3xCJ0MyYkJQa17Tsx8PBZ3sfz8ZhZ3ey_eT9YiM5eQYOm1HwBIQ7jqBniR2Itnlu4Yywt0fK3bG11_IWiHuw27Ttqjvb2-OlZEEM2OZD227GeDUEpBuCFJIohUdzxyJWqSuUeFcE_F4KJR-WW-l8H8Y_8eHxWJSsRVyPMzxh_1vzU62J4Nc8cHRBlituG5dIxj39ikpaZFoU4uvE2LPKbtOG3Ot2R3x2rmcmGztFhVvSBe6cDnzNe9xzC8z51Osm6vgr9nFIMXW-ck2wlaCDF8MCtNELFaz1392ZBd7d_kPyYsJ4c5hT9u5c0zljLVT480G3LiWEW_FgfdXN1rztokd-lzRFX_lilU4X7Zzn7un6Z2VXTWikR-pUn6F4D5fR--eM1NAzDzmIyAhSJZPM3ZYvwxv-4CyyjRVw2xr6uxlOmtmRcfnZ1STx6G0fXZW2kPABNDNfBwQgwaF5VnhSwkU8S2cU9s_r-fkZ4UVIQKbv2PYlbWWSQnQOA8Kvg3r5MjYcocBFjjR1ZsXKyiH0eNrDTuNkSeuFBkNv5B7rCQ5sBUBFKNPL-B3aGc0tcna1oZw3w3knI2NiO3XxR42vU9M0d0MBcb1dJ84Op13uZuG2_WZQ8UxOArVLVkB_AVEggH70aJ3UFpLJI8w_ciek");
+            //var response = await api.RefreshLoginAsync("{token}");
             //Console.WriteLine(response.Token);
             //return;
 #endif
