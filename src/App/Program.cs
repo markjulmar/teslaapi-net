@@ -53,19 +53,19 @@ namespace TeslaApp
             // Test state APIs
             //Console.WriteLine($"Mobile access enabled: {await myCar.IsMobileAccessEnabledAsync()}");
 
-            Console.WriteLine(await myCar.GetChargeStateAsync());
-            // Console.WriteLine(await myCar.GetClimateStateAsync());
-            // Console.WriteLine(await myCar.GetDriveStateAsync());
+            //Console.WriteLine(await myCar.GetChargeStateAsync());
+             //Console.WriteLine(await myCar.GetClimateStateAsync());
+            //Console.WriteLine(await myCar.GetDriveStateAsync());
             // Console.WriteLine(await myCar.GetGuiSettingsAsync());
             // Console.WriteLine(await myCar.GetVehicleStateAsync());
-            // Console.WriteLine(await myCar.GetVehicleConfigurationAsync());
+            //Console.WriteLine(await myCar.GetVehicleConfigurationAsync());
             //
             // var nearbyChargers = await myCar.GetNearbyChargingStations();
             // Console.WriteLine(nearbyChargers);
             // Console.WriteLine(nearbyChargers.DestinationCharging.FirstOrDefault()?.ToString());
             // Console.WriteLine(nearbyChargers.Superchargers.FirstOrDefault()?.ToString());
             //
-            // var allVehicleData = await myCar.GetAllVehicleDataAsync();
+            var allVehicleData = await myCar.GetAllVehicleDataAsync();
             // Console.WriteLine(allVehicleData.VIN);
 
             //await myCar.HonkHorn();
