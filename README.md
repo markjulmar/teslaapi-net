@@ -2,6 +2,18 @@
 
 This is a .NET Standard library for interacting with the [undocumented Tesla REST API](https://www.teslaapi.io/). It provides an easy way for .NET Core and desktop apps to retrieve status and send commands to Tesla vehicles.
 
+[![Build and Publish Tesla.NET](https://github.com/markjulmar/teslaapi-net/actions/workflows/dotnet.yml/badge.svg?branch=main)](https://github.com/markjulmar/teslaapi-net/actions/workflows/dotnet.yml)
+
+## Getting the library
+
+You can clone this repo and build from source, or install into your .NET app with NuGet.
+
+```console
+Install-Package Julmar.TeslaApi -Version 1.0.1-prerelease
+```
+
+If you any any issues, please report them here. Even better, this project takes pull requests!
+
 ## Working with the API
 
 Everything starts with the [TeslaClient](https://github.com/markjulmar/teslaapi-net/blob/main/src/TeslaApi/TeslaClient.cs) object. This provides the methods used to authenticate with the REST service and retrieve a vehicle object.
