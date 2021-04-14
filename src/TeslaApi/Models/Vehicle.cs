@@ -7,7 +7,7 @@ namespace Julmar.TeslaApi
     /// Represents a single Tesla vehicle tied to a Tesla account.
     /// This is the entrypoint for all of the status and command APIs.
     /// </summary>
-    public class Vehicle : VehicleInfo
+    public sealed class Vehicle : VehicleInfo
     {
         private TeslaClient teslaClient;
 
@@ -85,7 +85,7 @@ namespace Julmar.TeslaApi
         /// <summary>
         /// Returns a list of nearby Tesla-operated charging stations. (Requires car software version 2018.48 or higher.)
         /// </summary>
-        public Task<ChargingStations> GetNearbyChargingStations() => teslaClient.GetOneAsync<ChargingStations>($"{Id}/nearby_charging_sites");
+        public Task<ChargingStations> GetNearbyChargingStationsAsync() => teslaClient.GetOneAsync<ChargingStations>($"{Id}/nearby_charging_sites");
 
         /// <summary>
         /// A rollup of all the data_request endpoints plus vehicle configuration.
@@ -96,13 +96,13 @@ namespace Julmar.TeslaApi
         /// Honk the horn.
         /// </summary>
         /// <returns>True if success.</returns>
-        public Task<bool> HonkHorn() => teslaClient.PostCommandAsync($"{Id}/command/honk_horn");
+        public Task<bool> HonkHornAsync() => teslaClient.PostCommandAsync($"{Id}/command/honk_horn");
 
         /// <summary>
         /// Flash the headlights.
         /// </summary>
         /// <returns>True if success.</returns>
-        public Task<bool> FlashLights() => teslaClient.PostCommandAsync($"{Id}/command/flash_lights");
+        public Task<bool> FlashLightsAsync() => teslaClient.PostCommandAsync($"{Id}/command/flash_lights");
 
         /// <summary>
         /// Attempt to start the car and allow a person without a key to drive the car.
@@ -110,20 +110,20 @@ namespace Julmar.TeslaApi
         /// </summary>
         /// <param name="accountPassword">The password for the authenticated tesla.com account.</param>
         /// <returns>True if success.</returns>
-        public Task<bool> RemoteStart(string accountPassword) => 
+        public Task<bool> RemoteStartAsync(string accountPassword) => 
             teslaClient.PostCommandAsync($"{Id}/command/remote_start_drive?password={accountPassword}");
 
         /// <summary>
         /// Lock the doors
         /// </summary>
         /// <returns>True if success.</returns>
-        public Task<bool> LockDoors() => teslaClient.PostCommandAsync($"{Id}/command/door_lock");
+        public Task<bool> LockDoorsAsync() => teslaClient.PostCommandAsync($"{Id}/command/door_lock");
 
         /// <summary>
         /// Unlock the doors.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> UnlockDoors() => teslaClient.PostCommandAsync($"{Id}/command/door_unlock");
+        public Task<bool> UnlockDoorsAsync() => teslaClient.PostCommandAsync($"{Id}/command/door_unlock");
 
         /// <summary>
         /// Opens or closes the primary Homelink device.
@@ -132,7 +132,7 @@ namespace Julmar.TeslaApi
         /// <param name="latitude">Current latitude.</param>
         /// <param name="longitude">Current longitude.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> TriggerHomelink(double latitude, double longitude) => 
+        public Task<bool> TriggerHomelinkAsync(double latitude, double longitude) => 
             teslaClient.PostCommandAsync($"{Id}/command/trigger_homelink?lat={latitude}&lon={longitude}");
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Julmar.TeslaApi
         /// <param name="mph">The speed limit in MPH. Must be between 50-90.</param>
         /// <returns>True on success.</returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public Task<bool> SetSpeedLimit(int mph)
+        public Task<bool> SetSpeedLimitAsync(int mph)
         {
             if (mph < 50 || mph > 90)
                 throw new ArgumentException("Speed limit must be between 50 and 90.", nameof(mph));
@@ -156,14 +156,14 @@ namespace Julmar.TeslaApi
         /// and work locations in navigation.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> ActivateValetMode() => teslaClient.PostCommandAsync($"{Id}/command/set_valet_mode?on=true");
+        public Task<bool> ActivateValetModeAsync() => teslaClient.PostCommandAsync($"{Id}/command/set_valet_mode?on=true");
         
         /// <summary>
         /// Deactivates Sentry Mode. If a PIN code is required, it must be supplied.
         /// </summary>
         /// <param name="pinCode">Optional 4-digit PIN to deactivate valet mode</param>
         /// <returns>True on success.</returns>
-        public Task<bool> DeactivateValetMode(string pinCode = null)
+        public Task<bool> DeactivateValetModeAsync(string pinCode = null)
         {
             if (pinCode != null && (pinCode.Length != 4 || !int.TryParse(pinCode, out _)))
                 throw new ArgumentException("PIN must be 4 digits.");
@@ -180,37 +180,37 @@ namespace Julmar.TeslaApi
         /// activating from the car screen.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> ResetValetModePIN() => teslaClient.PostCommandAsync($"{Id}/command/reset_valet_pin");
+        public Task<bool> ResetValetModePinAsync() => teslaClient.PostCommandAsync($"{Id}/command/reset_valet_pin");
 
         /// <summary>
         /// Turn sentry mode on.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> ActivateSentryMode() => teslaClient.PostCommandAsync($"{Id}/command/set_sentry_mode?on=true");
+        public Task<bool> ActivateSentryModeAsync() => teslaClient.PostCommandAsync($"{Id}/command/set_sentry_mode?on=true");
         
         /// <summary>
         /// Turn sentry mode off.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> DeactivateSentryMode() => teslaClient.PostCommandAsync($"{Id}/command/set_sentry_mode?on=false");
+        public Task<bool> DeactivateSentryModeAsync() => teslaClient.PostCommandAsync($"{Id}/command/set_sentry_mode?on=false");
 
         /// <summary>
         /// Opens the trunk
         /// </summary>
         /// <returns>True on success</returns>
-        public Task<bool> OpenTrunk() => teslaClient.PostCommandAsync($"{Id}/command/actuate_trunk?which_trunk=rear");
+        public Task<bool> OpenTrunkAsync() => teslaClient.PostCommandAsync($"{Id}/command/actuate_trunk?which_trunk=rear");
 
         /// <summary>
         /// Opens the front trunk (frunk)
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> OpenFrunk() => teslaClient.PostCommandAsync($"{Id}/command/actuate_trunk?which_trunk=front");
+        public Task<bool> OpenFrunkAsync() => teslaClient.PostCommandAsync($"{Id}/command/actuate_trunk?which_trunk=front");
 
         /// <summary>
         /// Vents the windows.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> VentWindows() => teslaClient.PostCommandAsync($"{Id}/command/window_control?command=vent&lat=0&lon=0");
+        public Task<bool> VentWindowsAsync() => teslaClient.PostCommandAsync($"{Id}/command/window_control?command=vent&lat=0&lon=0");
         
         /// <summary>
         /// Closes the windows. Latitude and longitude values must be near the current location of the car for close operation to succeed.
@@ -218,51 +218,51 @@ namespace Julmar.TeslaApi
         /// <param name="latitude">Current latitude.</param>
         /// <param name="longitude">Current longitude.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> CloseWindows(double latitude, double longitude) => 
+        public Task<bool> CloseWindowsAsync(double latitude, double longitude) => 
             teslaClient.PostCommandAsync($"{Id}/command/window_control?command=close&lat={latitude}&lon={longitude}");
 
         /// <summary>
         /// Vents the panoramic sunroof on the Model S.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> VentSunroof() => teslaClient.PostCommandAsync($"{Id}/command/sun_roof_control?state=vent");
+        public Task<bool> VentSunroofAsync() => teslaClient.PostCommandAsync($"{Id}/command/sun_roof_control?state=vent");
         
         /// <summary>
         /// Closes the panoramic sunroof on the Model S.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> CloseSunroof() => teslaClient.PostCommandAsync($"{Id}/command/sun_roof_control?state=close");
+        public Task<bool> CloseSunroofAsync() => teslaClient.PostCommandAsync($"{Id}/command/sun_roof_control?state=close");
 
         /// <summary>
         /// Opens/Unlocks the charging port.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> OpenChargingDoor() => teslaClient.PostCommandAsync($"{Id}/command/charge_port_door_open");
+        public Task<bool> OpenChargingPortAsync() => teslaClient.PostCommandAsync($"{Id}/command/charge_port_door_open");
 
         /// <summary>
         /// Closes the charging port on cars with a motorized charging port.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> CloseChargingDoor() => teslaClient.PostCommandAsync($"{Id}/command/charge_port_door_close");
+        public Task<bool> CloseChargingPortAsync() => teslaClient.PostCommandAsync($"{Id}/command/charge_port_door_close");
 
         /// <summary>
         /// If the car is plugged in but not currently charging, this will start it charging.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> StartCharging() => teslaClient.PostCommandAsync($"{Id}/command/charge_start");
+        public Task<bool> StartChargingAsync() => teslaClient.PostCommandAsync($"{Id}/command/charge_start");
 
         /// <summary>
         /// If the car is currently charging, this will stop it.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> StopCharging() => teslaClient.PostCommandAsync($"{Id}/command/charge_stop");
+        public Task<bool> StopChargingAsync() => teslaClient.PostCommandAsync($"{Id}/command/charge_stop");
 
         /// <summary>
         /// If the car is currently charging, this will stop it.
         /// </summary>
         /// <param name="percentage">Percentage to set to. If omitted, will use 'standard' limit.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> SetChargeLimit(int? percentage = null)
+        public Task<bool> SetChargeLimitAsync(int? percentage = null)
         {
             if (!percentage.HasValue || percentage.Value < 0)
                 return teslaClient.PostCommandAsync($"{Id}/command/charge_standard");
@@ -277,14 +277,14 @@ namespace Julmar.TeslaApi
         /// Start the climate control (HVAC) system. Will cool or heat automatically, depending on set temperature.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> StartClimateControl() =>
+        public Task<bool> StartClimateControlAsync() =>
             teslaClient.PostCommandAsync($"{Id}/command/auto_conditioning_start");
         
         /// <summary>
         /// Stop the climate control (HVAC) system.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> StopClimateControl() =>
+        public Task<bool> StopClimateControlAsync() =>
             teslaClient.PostCommandAsync($"{Id}/command/auto_conditioning_stop");
 
         /// <summary>
@@ -292,20 +292,20 @@ namespace Julmar.TeslaApi
         /// </summary>
         /// <param name="celsiusTemp">The desired temperature in celsius.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> SetClimateControlTemperature(double celsiusTemp) =>
+        public Task<bool> SetClimateControlTemperatureAsync(double celsiusTemp) =>
             teslaClient.PostCommandAsync($"{Id}/command/set_temps?driver_temp={celsiusTemp}&passenger_temp={celsiusTemp}");
         
         /// <summary>
         /// Turn on the max defrost setting.
         /// </summary>
         /// <returns>True on success</returns>
-        public Task<bool> StartClimateControlDefrost() => teslaClient.PostCommandAsync($"{Id}/command/set_preconditioning_max?on=true");
+        public Task<bool> StartClimateControlDefrostAsync() => teslaClient.PostCommandAsync($"{Id}/command/set_preconditioning_max?on=true");
 
         /// <summary>
         /// Turn off the max defrost setting. Switches climate control back to default setting.
         /// </summary>
         /// <returns>True on success</returns>
-        public Task<bool> StopClimateControlDefrost() => teslaClient.PostCommandAsync($"{Id}/command/set_preconditioning_max?on=false");
+        public Task<bool> StopClimateControlDefrostAsync() => teslaClient.PostCommandAsync($"{Id}/command/set_preconditioning_max?on=false");
 
         /// <summary>
         /// Sets the specified seat's heater level.
@@ -313,7 +313,7 @@ namespace Julmar.TeslaApi
         /// <param name="seat">The desired seat to heat.</param>
         /// <param name="value">The desired level for the heater.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> SetSeatHeater(Seat seat, SeatHeater value) =>
+        public Task<bool> SetSeatHeaterAsync(Seat seat, SeatHeater value) =>
             teslaClient.PostCommandAsync($"{Id}/command/remote_seat_heater_request?heater={(int)seat}&level={(int)value}");
 
         /// <summary>
@@ -321,7 +321,7 @@ namespace Julmar.TeslaApi
         /// </summary>
         /// <param name="onOff"></param>
         /// <returns>True on success.</returns>
-        public Task<bool> SetSteeringWheelHeater(bool onOff) =>
+        public Task<bool> SetSteeringWheelHeaterAsync(bool onOff) =>
             teslaClient.PostCommandAsync(
                 $"{Id}/command/remote_steering_wheel_heater_request?on={onOff.ToString().ToLower()}");
 
@@ -330,62 +330,62 @@ namespace Julmar.TeslaApi
         /// The car must be on.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaTogglePlayPause() => teslaClient.PostCommandAsync($"{Id}/command/media_toggle_playback");
+        public Task<bool> MediaTogglePlayPauseAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_toggle_playback");
 
         /// <summary>
         /// Skips to the next track in the current playlist, or to the next station.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaNextTrack() => teslaClient.PostCommandAsync($"{Id}/command/media_next_track");
+        public Task<bool> MediaNextTrackAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_next_track");
 
         /// <summary>
         /// Skips to the previous track in the current playlist, or to the next station. Does nothing for streaming stations.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaPreviousTrack() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_track");
+        public Task<bool> MediaPreviousTrackAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_track");
 
         /// <summary>
         /// Skips to the next saved favorite in the media system.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaNextFavorite() => teslaClient.PostCommandAsync($"{Id}/command/media_next_fav");
+        public Task<bool> MediaNextFavoriteAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_next_fav");
         
         /// <summary>
         /// Skips to the previous saved favorite in the media system.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaPreviousFavorite() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_fav");
+        public Task<bool> MediaPreviousFavoriteAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_prev_fav");
         
         /// <summary>
         /// Turns up the volume of the media system.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaVolumeUp() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_up");
+        public Task<bool> MediaVolumeUpAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_up");
         
         /// <summary>
         /// Turns down the volume of the media system.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> MediaVolumeDown() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_down");
+        public Task<bool> MediaVolumeDownAsync() => teslaClient.PostCommandAsync($"{Id}/command/media_volume_down");
         
         /// <summary>
         /// Schedules a software update to be installed, if one is available.
         /// </summary>
         /// <param name="delayInSeconds">How many seconds in the future to schedule the update. Set to 0 for immediate install.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> ScheduleSoftwareUpdate(int delayInSeconds = 0) => teslaClient.PostCommandAsync($"{Id}/command/schedule_software_update");
+        public Task<bool> ScheduleSoftwareUpdateAsync(int delayInSeconds = 0) => teslaClient.PostCommandAsync($"{Id}/command/schedule_software_update?offset_sec={delayInSeconds}");
         
         /// <summary>
         /// Cancels a software update, if one is scheduled and has not yet started.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> CancelSoftwareUpdate() => teslaClient.PostCommandAsync($"{Id}/command/cancel_software_update");
+        public Task<bool> CancelSoftwareUpdateAsync() => teslaClient.PostCommandAsync($"{Id}/command/cancel_software_update");
 
         /// <summary>
         /// Set upcoming calendar entries.
         /// </summary>
         /// <returns>True on success.</returns>
-        public Task<bool> SetUpcomingCalendarEntries() => teslaClient.PostCommandAsync($"{Id}/command/upcoming_calendar_entries");
+        public Task<bool> SetUpcomingCalendarEntriesAsync() => teslaClient.PostCommandAsync($"{Id}/command/upcoming_calendar_entries");
 
         /// <summary>
         /// Sends a location for the car to start navigation.
@@ -393,7 +393,7 @@ namespace Julmar.TeslaApi
         /// <param name="address">Address to navigate to</param>
         /// <param name="locale">Locale of address - if not supplied, current UI culture is used.</param>
         /// <returns>True on success.</returns>
-        public Task<bool> ShareAddressForNavigation(string address, string locale = null) =>
+        public Task<bool> ShareAddressForNavigationAsync(string address, string locale = null) =>
             teslaClient.PostCommandAsync($"{Id}/command/share", new ShareRequest(address, locale));
 
         /// <summary>
@@ -401,7 +401,7 @@ namespace Julmar.TeslaApi
         /// </summary>
         /// <param name="uri">Web address for video to play</param>
         /// <returns>True on success.</returns>
-        public Task<bool> PlayFullscreenVideo(Uri uri) =>
+        public Task<bool> PlayFullscreenVideoAsync(Uri uri) =>
             teslaClient.PostCommandAsync($"{Id}/command/share", new ShareRequest(uri.AbsoluteUri));
     }
 }

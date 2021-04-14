@@ -6,6 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TeslaApi\TeslaApi.csproj" />
+    <PackageReference Include="Julmar.TeslaApi" Version="1.0.1-prerelease" />
   </ItemGroup>
 </Project>

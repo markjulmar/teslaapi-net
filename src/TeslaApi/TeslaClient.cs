@@ -92,7 +92,7 @@ namespace Julmar.TeslaApi
         /// <summary>
         /// Function to auto-refresh token and reissue any failing call.
         /// </summary>
-        public Func<AccessToken> AutoRefreshToken { get; set; }
+        public Func<Task<string>> AutoRefreshToken { get; set; }
 
         /// <summary>
         /// Underlying web connection. Can be created as needed.
@@ -143,12 +143,12 @@ namespace Julmar.TeslaApi
                     case HttpStatusCode.Unauthorized:
                         if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
                         {
-                            var authResponse = AutoRefreshToken.Invoke();
-                            if (authResponse?.Token != null)
+                            var token = await AutoRefreshToken.Invoke();
+                            if (!string.IsNullOrEmpty(token))
                             {
                                 client.Dispose();
                                 client = null;
-                                accessToken = authResponse.Token;
+                                accessToken = token;
                                 return await GetOneAsync<T>(endpoint, true);
                             }
                         }
@@ -211,12 +211,12 @@ namespace Julmar.TeslaApi
                     case HttpStatusCode.Unauthorized:
                         if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
                         {
-                            var authResponse = AutoRefreshToken.Invoke();
-                            if (authResponse?.Token != null)
+                            var token = await AutoRefreshToken.Invoke();
+                            if (!string.IsNullOrEmpty(token))
                             {
                                 client.Dispose();
                                 client = null;
-                                accessToken = authResponse.Token;
+                                accessToken = token;
                                 return await PostOneAsync<T>(endpoint, body, true);
                             }
                         }
@@ -260,12 +260,12 @@ namespace Julmar.TeslaApi
                     case HttpStatusCode.Unauthorized:
                         if (!isRetryWithNewAccessToken && AutoRefreshToken != null)
                         {
-                            var authResponse = AutoRefreshToken.Invoke();
-                            if (authResponse?.Token != null)
+                            var token = await AutoRefreshToken.Invoke();
+                            if (!string.IsNullOrEmpty(token))
                             {
                                 client.Dispose();
                                 client = null;
-                                accessToken = authResponse.Token;
+                                accessToken = token;
                                 return await GetListAsync<T>(endpoint, true);
                             }
                         }
@@ -351,7 +351,9 @@ namespace Julmar.TeslaApi
 
             try
             {
-                return await Auth.RefreshTokenAsync(refreshToken, ClientId, ClientSecret, TraceLog);
+                var result = await Auth.RefreshTokenAsync(refreshToken, ClientId, ClientSecret, TraceLog);
+                this.accessToken = result.Token;
+                return result;
             }
             catch (TeslaAuthenticationException)
             {
