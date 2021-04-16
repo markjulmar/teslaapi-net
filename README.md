@@ -1,4 +1,4 @@
-# Tesla.NET
+# TeslaApi.NET
 
 This is a .NET Standard library for interacting with the [undocumented Tesla REST API](https://www.teslaapi.io/). It provides an easy way for .NET Core and desktop apps to retrieve status and send commands to Tesla vehicles.
 

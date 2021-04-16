@@ -1,4 +1,4 @@
-name: Build and Publish Azure DevOps Utils
+name: Build and Publish TeslaApi.NET
 
 on:
   push:
