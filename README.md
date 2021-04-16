@@ -731,12 +731,14 @@ foreach (var item in allCars)
 // Here's how to retrieve by ID
 var myCar = await api.GetVehicleAsync(allCars.First().Id);
 
-// Wake the car up. Loop until the status indicates online.
-int count = 0;
-if (myCar.State != "online")
+// Wake the car up.
+if (!myCar.IsAwake)
 {
-    while (!await myCar.WakeupAsync() && count++ < 10)
-        await Task.Delay(5000);
+    if (!await myCar.WakeupAsync(30))
+    {
+        Console.WriteLine("Unable to wake up car.");
+        return;
+    }
 }
 
 // Dump out common state values

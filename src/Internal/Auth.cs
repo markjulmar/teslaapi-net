@@ -88,19 +88,39 @@ namespace Julmar.TeslaApi.Internal
             htmlResponse = await client.SendAsync(request);
             logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
 
-            // If we get a form back, then the Tesla site is asking for more info.
+            // If we get a form back, then the Tesla site is asking for more info,
+            // or the username/password combination is not valid.
             if (htmlResponse.StatusCode == HttpStatusCode.OK)
             {
                 htmlForm = await htmlResponse.Content.ReadAsStringAsync();
 
+                // See if we're still on the sign-in form.
+                if (htmlForm.Contains("sso-form sign-in-form"))
+                {
+                    throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized, "Could not sign in, please check your email and password combination.");
+                }
+                
                 // Deal with MFA
-                bool usesMultiFactor = htmlForm.Contains("/mfa/verify");
-                if (usesMultiFactor && multiFactorAuthResolver != null)
+                bool usesMultiFactor = htmlForm.Contains("/authorize/mfa/verify");
+                if (usesMultiFactor)
                 {
                     logger?.Invoke(LogLevel.Info, "Step 2a: Multi-factor authentication is enabled. Retrieving passcode and attempting login.");
-                    
+
+                    if (multiFactorAuthResolver == null)
+                    {
+                        throw new TeslaAuthenticationException((int)HttpStatusCode.Unauthorized,
+                            "Account has multi-factor authentication enabled. You must supply a multiFactorAuthResolver parameter to LoginAsync.");
+                    }
+
                     // Get either a passcode or backup
                     var (passcode, backupPasscode) = multiFactorAuthResolver();
+
+                    if (string.IsNullOrEmpty(passcode)
+                        && string.IsNullOrEmpty(backupPasscode))
+                    {
+                        throw new TeslaAuthenticationException((int)HttpStatusCode.Unauthorized,
+                            "Account has multi-factor authentication enabled. You must supply either a passcode or backup passcode.");
+                    }
 
                     HttpContent authBody = null;
                     if (passcode != null)
@@ -173,10 +193,6 @@ namespace Julmar.TeslaApi.Internal
                         //}
                     }
 
-                    if (authBody == null)
-                        throw new TeslaAuthenticationException((int) HttpStatusCode.Unauthorized,
-                            "Account has multi-factor authentication enabled. You must supply a passcode or backup passcode.");
-
                     logger?.Invoke(LogLevel.Query, $"POST {Constants.MfaVerify}");
                     htmlResponse = await client.PostAsync(Constants.MfaVerify, authBody);
                     logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
@@ -212,6 +228,10 @@ namespace Julmar.TeslaApi.Internal
                     JsonSerializer.Serialize(new Dictionary<string, string>() {{"transaction_id", transactionId}}),
                     Encoding.UTF8, "application/json"));
                 logger?.Invoke(LogLevel.Response, htmlResponse.ToString());
+            }
+            else if (htmlResponse.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new TeslaAuthenticationException((int)HttpStatusCode.Unauthorized, "Invalid email/password combination.");
             }
 
             // We should have a 302 redirect at this point.

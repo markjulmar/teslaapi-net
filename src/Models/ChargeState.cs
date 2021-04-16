@@ -21,7 +21,7 @@ namespace Julmar.TeslaApi
         public int BatteryLevel { get; set; }
 
         /// <summary>
-        /// Current rated battery range in miles/km
+        /// Current rated battery range in miles
         /// </summary>
         [JsonPropertyName("battery_range")]
         public double RatedBatteryRange { get; set; }
@@ -106,7 +106,7 @@ namespace Julmar.TeslaApi
         public string ChargePortLatch { get; set; }
 
         /// <summary>
-        /// How many miles/km per hour being added on current charging session.
+        /// How many miles per hour being added on current charging session.
         /// </summary>
         [JsonPropertyName("charge_rate")]
         public double ChargeRate { get; set; }
@@ -270,6 +270,12 @@ namespace Julmar.TeslaApi
         /// </summary>
         [JsonPropertyName("user_charge_enable_request")]
         public string UserChargeEnableRequest { get; set; }
+
+        /// <summary>
+        /// True if the car is currently charging.
+        /// </summary>
+        public bool IsCharging
+            => string.Compare(ChargingState, "charging", StringComparison.InvariantCultureIgnoreCase) == 0;
 
         /// <summary>Returns a string that represents the current object.</summary>
         /// <returns>A string that represents the current object.</returns>

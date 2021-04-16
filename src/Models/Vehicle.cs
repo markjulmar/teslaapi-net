@@ -14,7 +14,7 @@ namespace Julmar.TeslaApi
         /// <summary>
         /// Attach this vehicle to the client API
         /// </summary>
-        /// <param name="client"></param>
+        /// <param name="client">REST client</param>
         internal void SetClient(TeslaClient client)
         {
             teslaClient = client;
@@ -23,13 +23,30 @@ namespace Julmar.TeslaApi
         /// <summary>
         /// Wakes up the car from a sleeping state.
         /// The API will return a response immediately, however it could take several seconds before the car
-        /// is actually online and ready to receive other commands. You can call this API with a 30-second delay
+        /// is actually online and ready to receive other commands. You can call this API with a delay
         /// until it returns 'true'.
         /// </summary>
+        /// <param name="secondsToWait"># of seconds to wait for car wake up (0-60).</param>
         /// <returns>True if the car is online</returns>
-        public async Task<bool> WakeupAsync()
+        public async Task<bool> WakeupAsync(int secondsToWait = 0)
         {
-            var result = await teslaClient.PostOneAsync<Vehicle>($"{Id}/wake_up");
+            if (secondsToWait < 0 || secondsToWait > 60)
+                throw new ArgumentOutOfRangeException(nameof(secondsToWait));
+            
+            VehicleInfo result;
+
+            int count = 0;
+            while (true)
+            {
+                result = await teslaClient.PostOneAsync<VehicleInfo>($"{Id}/wake_up");
+                if (string.Compare(result.State, "online", StringComparison.OrdinalIgnoreCase) == 0) 
+                    break;
+                
+                if (count < secondsToWait)
+                    await Task.Delay(1000);
+
+                count++;
+            }
             
             // Copy over the fields that can change.
             Id = result.Id;
@@ -40,8 +57,13 @@ namespace Julmar.TeslaApi
             ApiVersion = result.ApiVersion;
             CalendarEnabled = result.CalendarEnabled;
 
-            return string.Compare(State, "online", StringComparison.OrdinalIgnoreCase) == 0;
+            return IsAwake;
         }
+
+        /// <summary>
+        /// Returns true if the vehicle is awake and ready for status or command changes.
+        /// </summary>
+        public bool IsAwake => string.Compare(this.State, "online", StringComparison.OrdinalIgnoreCase) == 0;
 
         /// <summary>
         /// Information on the state of charge in the battery and its various settings.

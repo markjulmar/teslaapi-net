@@ -76,6 +76,6 @@ namespace Julmar.TeslaApi
 
         /// <summary>Returns a string that represents the current object.</summary>
         /// <returns>A string that represents the current object.</returns>
-        public override string ToString() => $"Id={Id}, Vid={VehicleId}, Name={DisplayName}, VIN={VIN}, Color={Color}, State={State}";
+        public override string ToString() => $"Id={Id}, Name={DisplayName}, VIN={VIN}, State={State}";
     }
 }

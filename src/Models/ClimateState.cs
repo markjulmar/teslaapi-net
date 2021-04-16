@@ -3,6 +3,37 @@
 namespace Julmar.TeslaApi
 {
     /// <summary>
+    /// Fan speed
+    /// </summary>
+    public enum FanSpeed
+    {
+        /// <summary>
+        /// Fan is off
+        /// </summary>
+        Off = 0,
+        /// <summary>
+        /// Lowest setting
+        /// </summary>
+        Lowest = 1,
+        /// <summary>
+        /// Low
+        /// </summary>
+        Low = 2,
+        /// <summary>
+        /// Middle
+        /// </summary>
+        Mid = 3,
+        /// <summary>
+        /// High
+        /// </summary>
+        High = 4,
+        /// <summary>
+        /// Highest setting
+        /// </summary>
+        Highest = 5
+    }
+
+    /// <summary>
     /// JSON object returned for /api/1/vehicles/{id}/data_request/climate_stat
     /// </summary>
     public sealed class ClimateState
@@ -42,7 +73,7 @@ namespace Julmar.TeslaApi
         /// 0 = off, 1-5
         /// </summary>
         [JsonPropertyName("fan_status")]
-        public int FanStatus { get; set; }
+        public FanSpeed FanSpeed { get; set; }
 
         /// <summary>
         /// Car temperature in celsius

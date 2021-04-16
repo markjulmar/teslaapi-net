@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using HtmlAgilityPack;
 using Julmar.TeslaApi.Internal;
 
 namespace Julmar.TeslaApi
@@ -19,7 +20,12 @@ namespace Julmar.TeslaApi
         /// Current directional heading
         /// </summary>
         [JsonPropertyName("heading")]
-        public int Heading { get; set; }
+        public double Heading { get; set; }
+
+        /// <summary>
+        /// Current direction (text) from heading
+        /// </summary>
+        public string Direction => UnitConversion.HeadingToDirection(Heading);
 
         /// <summary>
         /// GPS location

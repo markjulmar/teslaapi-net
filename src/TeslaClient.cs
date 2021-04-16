@@ -229,7 +229,7 @@ namespace Julmar.TeslaApi
 
             string contents = await result.Content.ReadAsStringAsync();
             TraceLog?.Invoke(LogLevel.RawData, contents);
-            return JsonSerializer.Deserialize<OneResponse<T>>(contents).Response;
+            return JsonSerializer.Deserialize<T>(contents);
         }
 
         /// <summary>
