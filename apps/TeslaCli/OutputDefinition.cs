@@ -61,38 +61,39 @@ namespace TeslaCli
             }
             else if (outputStyle == OutputStyle.Table)
             {
+                // Step 1: get the column sizes.
+                int[] headerLen = new int[values.Count];
+                for (int x = 0; x < values.Count; x++)
+                    headerLen[x] = Math.Max(values[x].Header.Length, items.Max(it => values[x].GetValue(it).Length));
+
+                // Step 2: output headers
+                for (int x = 0; x < values.Count; x++)
+                {
+                    if (values[x].ShowInStyles.HasFlag(outputStyle))
+                    {
+                        string header = values[x].Header;
+                        header += new string(' ', headerLen[x] - header.Length);
+                        sb.Append(header).Append(' ');
+                    }
+                }
+                sb.AppendLine();
+
+                for (int x = 0; x < values.Count; x++)
+                {
+                    if (values[x].ShowInStyles.HasFlag(outputStyle))
+                    {
+                        string sep = new('-', headerLen[x]);
+                        sb.Append(sep).Append(' ');
+                    }
+                }
+                sb.AppendLine();
+                
+                // Step 3: output values
                 for (int i = 0; i < items.Count; i++)
                 {
+                    TItem item = items[i];
                     if (i > 0)
                         sb.AppendLine();
-
-                    // Get the max size of the column
-                    TItem item = items[i];
-                    int[] headerLen = new int[values.Count];
-                    for (int x = 0; x < values.Count; x++)
-                        headerLen[x] = Math.Max(values[x].Header.Length, items.Max(it => values[x].GetValue(it).Length));
-
-                    for (int x = 0; x < values.Count; x++)
-                    {
-                        if (values[x].ShowInStyles.HasFlag(outputStyle))
-                        {
-                            string header = values[x].Header;
-                            header += new string(' ', headerLen[x] - header.Length);
-                            sb.Append(header).Append(' ');
-                        }
-                    }
-                    sb.AppendLine();
-
-                    for (int x = 0; x < values.Count; x++)
-                    {
-                        if (values[x].ShowInStyles.HasFlag(outputStyle))
-                        {
-                            string sep = new('-', headerLen[x]);
-                            sb.Append(sep).Append(' ');
-                        }
-                    }
-                    sb.AppendLine();
-
                     for (int x = 0; x < values.Count; x++)
                     {
                         if (values[x].ShowInStyles.HasFlag(outputStyle))

@@ -55,7 +55,8 @@ namespace TeslaCli
             return new RootCommand
             {
                 new LoginCommand(token => Utilities.WriteTokenInfo(token)).CreateCommand(),
-                VehicleCommands.Build(CreateClient)
+                VehicleCommands.Build(CreateClient),
+                new ChargingStationsQuery(CreateClient).CreateCommand()
             };
         }
     }

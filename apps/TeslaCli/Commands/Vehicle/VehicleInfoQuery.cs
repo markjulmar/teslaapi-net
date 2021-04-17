@@ -20,6 +20,7 @@ namespace TeslaCli.Commands
 
             output.Add("Name", car => car.VehicleName);
             output.Add("Car Version", car => car.SoftwareUpdate.Version);
+            output.Add("Has Update", car => string.IsNullOrEmpty(car.SoftwareUpdate.Status) ? "No" : car.SoftwareUpdate.Status);
             output.Add("Odometer", car => Math.Round(car.Odometer,2), " mi");
             output.Add("Locked", car => car.Locked);
             output.Add("Sentry On", car => car.SentryMode);
