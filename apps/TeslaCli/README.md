@@ -8,13 +8,13 @@ This is a .NET core app. You can run it using `dotnet run -- {params}`, but a ni
 
 ```bash
 # Linux
-dotnet publish -r linux-x64 -p:PublishSingleFile=true --self-contained false
+dotnet publish -r linux-x64 -p:PublishSingleFile=true -c Release --self-contained false
 
 # windows
-dotnet publish -r win-x64 -p:PublishSingleFile=true --self-contained true
+dotnet publish -r win-x64 -p:PublishSingleFile=true -c Release --self-contained true
 
 # macos
-dotnet publish -r osx-x64 -p:PublishSingleFile=true --self-contained true
+dotnet publish -r osx-x64 -p:PublishSingleFile=true -c Release --self-contained true
 ```
 
 This will place a single executable for the OS into the `/bin/xyz/{os-type}/publish` folder.
