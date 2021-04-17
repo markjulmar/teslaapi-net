@@ -9,7 +9,7 @@ This is a .NET Standard library for interacting with the [undocumented Tesla RES
 You can clone this repo and build from source, or install into your .NET app with NuGet.
 
 ```console
-Install-Package Julmar.TeslaApi -Version 1.0.1-prerelease
+Install-Package Julmar.TeslaApi -Version 1.0.2-prerelease
 ```
 
 If you any any issues, please report them here. Even better, this project takes pull requests!
